@@ -1,0 +1,22 @@
+:root {
+  --blue-900: #0a2540;
+  --blue-700: #004a80;   /* botão e títulos */
+  --blue-500: #1a6fb5;
+  --green-50: #effaf4;   /* aviso RNDS */
+  --green-200: #c9f0dc;
+  --gray-50: #f8fafc;
+  --gray-200: #dfe5ee;
+  --gray-500: #64748b;
+  --text: #0f172a;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input { font-family: inherit; }

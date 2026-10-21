@@ -1,0 +1,40 @@
+.beams {
+  --beam: #5cc8ff;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+.beam { position: absolute; display: block; }
+.beam--top,
+.beam--bottom {
+  height: 3px;
+  width: 50%;
+  background: linear-gradient(90deg, transparent, var(--beam), #fff, var(--beam), transparent);
+}
+.beam--right,
+.beam--left {
+  width: 3px;
+  height: 50%;
+  background: linear-gradient(180deg, transparent, var(--beam), transparent);
+}
+.beam--top { top: 0; left: 0; }
+.beam--right { top: 0; right: 0; }
+.beam--bottom { bottom: 0; right: 0; }
+.beam--left { bottom: 0; left: 0; }
+
+.corner {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: var(--beam);
+}
+.corner--tl { top: 0; left: 0; width: 5px; height: 5px; filter: blur(1px); }
+.corner--tr { top: 0; right: 0; width: 8px; height: 8px; filter: blur(2px); }
+.corner--br { bottom: 0; right: 0; width: 8px; height: 8px; filter: blur(2px); }
+.corner--bl { bottom: 0; left: 0; width: 5px; height: 5px; filter: blur(1px); }
+
+/* variação clara para fundos azuis */
+.beams--light { --beam: #bdeaff; }
