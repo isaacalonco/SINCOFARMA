@@ -464,3 +464,26 @@ label.is-focused { color: var(--blue-500); }
 .new-password { display: grid; }
 .new-password .login-idle { margin: 0 0 16px; }
 .label-gap { margin-top: 18px; }
+
+.mfa-qr {
+  justify-self: center;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: #fff;
+}
+.mfa-secret {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--gray-500);
+  text-align: center;
+}
+.mfa-secret code {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: #1e4f7d;
+  user-select: all;
+  word-break: break-all;
+}

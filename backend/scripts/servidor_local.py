@@ -60,6 +60,8 @@ def preparar():
         GenerateSecret=False,
         ExplicitAuthFlows=["ALLOW_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],
     )["UserPoolClient"]["ClientId"]
+    # MFA obrigatório por app autenticador, como no template (o moto aceita qualquer código de 6 dígitos)
+    idp.set_user_pool_mfa_config(UserPoolId=pool, SoftwareTokenMfaConfiguration={"Enabled": True}, MfaConfiguration="ON")
     idp.create_group(UserPoolId=pool, GroupName="unidade:asa-sul")
     idp.admin_create_user(
         UserPoolId=pool,
@@ -107,6 +109,8 @@ def main() -> int:
         cognito_ops = {
             "InitiateAuth": idp.initiate_auth,
             "RespondToAuthChallenge": idp.respond_to_auth_challenge,
+            "AssociateSoftwareToken": idp.associate_software_token,
+            "VerifySoftwareToken": idp.verify_software_token,
             "RevokeToken": idp.revoke_token,
         }
 

@@ -16,6 +16,14 @@ export function AuthProvider({ children }) {
     setUser(await authService.completeNewPassword(challenge, newPassword));
   }, []);
 
+  /** MFA (app autenticador): conclui o cadastro do app ou responde o código. */
+  const finishTotpSetup = useCallback(async (setup, code) => {
+    setUser(await authService.finishTotpSetup(setup, code));
+  }, []);
+  const answerTotp = useCallback(async (challenge, code) => {
+    setUser(await authService.answerTotp(challenge, code));
+  }, []);
+
   const signOut = useCallback(() => {
     authService.logout();
     repository.clear();
@@ -29,8 +37,17 @@ export function AuthProvider({ children }) {
   }, [signOut]);
 
   const value = useMemo(
-    () => ({ user, signIn, signOut, completeNewPassword, mode: authService.AUTH_MODE }),
-    [user, signIn, signOut, completeNewPassword]
+    () => ({
+      user,
+      signIn,
+      signOut,
+      completeNewPassword,
+      startTotpSetup: authService.startTotpSetup,
+      finishTotpSetup,
+      answerTotp,
+      mode: authService.AUTH_MODE,
+    }),
+    [user, signIn, signOut, completeNewPassword, finishTotpSetup, answerTotp]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

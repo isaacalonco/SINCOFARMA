@@ -81,6 +81,9 @@ VITE_COGNITO_CLIENT_ID=<UserPoolClientId>
 
 - Login por `USER_PASSWORD_AUTH` (a senha vai por TLS direto ao Cognito). Tokens de 15 min, sessão de até 12 h,
   revogação ligada; refresh token só no `sessionStorage`.
-- MFA desligado e proteção contra ameaças do Cognito não configurada: recomendados antes de produção.
+- MFA obrigatório por app autenticador (TOTP). No primeiro login o painel mostra o QR code para cadastrar o app;
+  nos seguintes, pede o código de 6 dígitos. Se o farmacêutico perder o celular, o gestor remove o MFA do usuário
+  no Cognito (`admin-set-user-mfa-preference`) e o cadastro do app é refeito no próximo login.
+- Proteção contra ameaças do Cognito não configurada: recomendada antes de produção.
 - Em `prod`, tabelas e user pool têm proteção contra exclusão; tabelas ficam retidas se o stack for apagado.
 - Sem WAF na API (HTTP API não suporta WAF diretamente); há limite de taxa por rota.

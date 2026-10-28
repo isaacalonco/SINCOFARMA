@@ -1,6 +1,6 @@
 // Cliente mínimo do Amazon Cognito (user pool) via HTTPS, sem SDK.
-// Só as quatro chamadas que o painel usa: login, troca de senha inicial,
-// renovação do token e revogação no logout.
+// Só as chamadas que o painel usa: login, troca de senha inicial, MFA por
+// app autenticador (cadastro e código), renovação do token e revogação no logout.
 
 const REGION = import.meta.env.VITE_COGNITO_REGION;
 const CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID;
@@ -33,7 +33,16 @@ const MESSAGES = {
   ExpiredCodeException: "Sessão de troca de senha expirada. Entre de novo.",
 };
 
-async function call(target, body) {
+// nas etapas de MFA os mesmos erros querem dizer outra coisa
+const MFA_MESSAGES = {
+  CodeMismatchException: "Código incorreto. Confira o app autenticador e tente de novo.",
+  EnableSoftwareTokenMFAException: "Código incorreto. Confira o app autenticador e tente de novo.",
+  ExpiredCodeException: "Código já usado. Aguarde o próximo código do app.",
+  NotAuthorizedException: "Tempo para concluir o login esgotado. Entre de novo.",
+  ResourceNotFoundException: "Tempo para concluir o login esgotado. Entre de novo.",
+};
+
+async function call(target, body, messages = MESSAGES) {
   let response;
   try {
     response = await fetch(ENDPOINT, {
@@ -50,7 +59,7 @@ async function call(target, body) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const code = String(data.__type || "").split("#").pop();
-    throw new AuthError(MESSAGES[code] || "Não foi possível entrar. Tente novamente.", { code });
+    throw new AuthError(messages[code] || MESSAGES[code] || "Não foi possível entrar. Tente novamente.", { code });
   }
   return data;
 }
@@ -71,6 +80,27 @@ function tokensFrom(result) {
   };
 }
 
+// etapas que o painel sabe conduzir; qualquer outra vira erro
+const CHALLENGES = {
+  NEW_PASSWORD_REQUIRED: "Defina uma nova senha para continuar.", // primeiro acesso
+  MFA_SETUP: "Configure o app autenticador para continuar.", // primeiro login com MFA
+  SOFTWARE_TOKEN_MFA: "Digite o código do app autenticador.",
+};
+
+/** Tokens, ou um AuthError "Challenge" com a próxima etapa (o Cognito pode encadear várias). */
+function resultOrChallenge(data, username) {
+  if (!data.ChallengeName) return tokensFrom(data.AuthenticationResult);
+  if (!CHALLENGES[data.ChallengeName]) {
+    throw new AuthError("Etapa adicional de login não suportada. Procure o gestor da unidade.", { code: data.ChallengeName });
+  }
+  throw new AuthError(CHALLENGES[data.ChallengeName], {
+    code: "Challenge",
+    challenge: data.ChallengeName,
+    session: data.Session,
+    username: data.ChallengeParameters?.USER_ID_FOR_SRP || username,
+  });
+}
+
 export async function initiateAuth(identifier, password) {
   const username = toUsername(identifier);
   const data = await call("InitiateAuth", {
@@ -78,17 +108,7 @@ export async function initiateAuth(identifier, password) {
     ClientId: CLIENT_ID,
     AuthParameters: { USERNAME: username, PASSWORD: password },
   });
-  if (data.ChallengeName) {
-    // primeiro acesso: o usuário criado pelo gestor precisa definir a própria senha
-    const challengeUser = data.ChallengeParameters?.USER_ID_FOR_SRP || username;
-    throw new AuthError("Defina uma nova senha para continuar.", {
-      code: "Challenge",
-      challenge: data.ChallengeName,
-      session: data.Session,
-      username: challengeUser,
-    });
-  }
-  return tokensFrom(data.AuthenticationResult);
+  return resultOrChallenge(data, username);
 }
 
 export async function completeNewPassword({ username, session }, newPassword) {
@@ -98,10 +118,54 @@ export async function completeNewPassword({ username, session }, newPassword) {
     Session: session,
     ChallengeResponses: { USERNAME: username, NEW_PASSWORD: newPassword },
   });
-  if (data.ChallengeName) {
-    throw new AuthError("Etapa adicional de login não suportada. Procure o gestor da unidade.", { code: data.ChallengeName });
-  }
-  return tokensFrom(data.AuthenticationResult);
+  return resultOrChallenge(data, username);
+}
+
+/** MFA_SETUP, passo 1: gera o segredo que o app autenticador vai guardar. */
+export async function startTotpSetup({ username, session }) {
+  const data = await call("AssociateSoftwareToken", { Session: session }, MFA_MESSAGES);
+  return { username, session: data.Session, secret: data.SecretCode };
+}
+
+/** MFA_SETUP, passo 2: confere o primeiro código do app e conclui o login. */
+export async function finishTotpSetup({ username, session }, code) {
+  const verified = await call(
+    "VerifySoftwareToken",
+    { Session: session, UserCode: code, FriendlyDeviceName: "Painel Sincofarma" },
+    MFA_MESSAGES
+  );
+  const data = await call(
+    "RespondToAuthChallenge",
+    {
+      ClientId: CLIENT_ID,
+      ChallengeName: "MFA_SETUP",
+      Session: verified.Session,
+      ChallengeResponses: { USERNAME: username },
+    },
+    MFA_MESSAGES
+  );
+  return resultOrChallenge(data, username);
+}
+
+/** Login com MFA já configurado: responde o código de 6 dígitos. */
+export async function answerTotp({ username, session }, code) {
+  const data = await call(
+    "RespondToAuthChallenge",
+    {
+      ClientId: CLIENT_ID,
+      ChallengeName: "SOFTWARE_TOKEN_MFA",
+      Session: session,
+      ChallengeResponses: { USERNAME: username, SOFTWARE_TOKEN_MFA_CODE: code },
+    },
+    MFA_MESSAGES
+  );
+  return resultOrChallenge(data, username);
+}
+
+/** Endereço otpauth:// que vira o QR code lido pelo app autenticador. */
+export function totpUri(secret, account) {
+  const label = encodeURIComponent(`Sincofarma DF:${account}`);
+  return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent("Sincofarma DF")}`;
 }
 
 export async function refresh(refreshToken) {

@@ -12,7 +12,9 @@ import {
   Check,
   AlertCircle,
   TriangleAlert,
+  Smartphone,
 } from "lucide-react";
+import { totpUri } from "../../services/cognito";
 import { useAuth } from "../../contexts/auth";
 import logo from "../../assets/logo-sincofarma.webp";
 import LightBeams from "../../components/LightBeams";
@@ -32,12 +34,15 @@ export default function Login() {
   const [error, setError] = useState("");
   const [help, setHelp] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | loading | success
-  // primeiro acesso (Cognito): o gestor criou a conta com senha temporária
+  // etapa pendente do Cognito: { type, username, session, secret?, qr? }
+  // NEW_PASSWORD_REQUIRED (senha temporária do gestor), MFA_SETUP (cadastrar o
+  // app autenticador) ou SOFTWARE_TOKEN_MFA (código de 6 dígitos)
   const [challenge, setChallenge] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
 
-  const { signIn, completeNewPassword } = useAuth();
+  const { signIn, completeNewPassword, startTotpSetup, finishTotpSetup, answerTotp } = useAuth();
   const navigate = useNavigate();
   // motivo de um encerramento automático (lido uma vez e apagado)
   const [idleLogout] = useState(() => {
@@ -64,11 +69,28 @@ export default function Login() {
   // efeito 3D + holofote seguindo o mouse (mesmo hook dos cards do painel)
   const tilt = useSpotlightTilt(8);
 
+  /** Mostra a próxima etapa pedida pelo Cognito (podem vir várias em sequência). */
+  async function enterChallenge(err) {
+    const next = { type: err.challenge, username: err.username, session: err.session };
+    if (next.type === "MFA_SETUP") {
+      const setup = await startTotpSetup(next);
+      const QRCode = await import("qrcode");
+      // no rótulo do app vai só o fim do CPF: o celular não precisa do documento inteiro
+      const account = `***${String(next.username).slice(-4)}`;
+      const qr = await QRCode.toDataURL(totpUri(setup.secret, account), { margin: 1, width: 176 });
+      Object.assign(next, { session: setup.session, secret: setup.secret, qr });
+    }
+    setChallenge(next);
+    setPassword("");
+    setMfaCode("");
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (loading || success) return;
     setError("");
-    if (challenge) {
+    const type = challenge?.type;
+    if (type === "NEW_PASSWORD_REQUIRED") {
       const policy = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{12,}$/;
       if (!policy.test(newPassword)) {
         setError("A nova senha precisa de 12 caracteres ou mais, com maiúscula, minúscula e número.");
@@ -79,22 +101,34 @@ export default function Login() {
         return;
       }
     }
+    if ((type === "MFA_SETUP" || type === "SOFTWARE_TOKEN_MFA") && !/^\d{6}$/.test(mfaCode)) {
+      setError("Digite os 6 números mostrados no app autenticador.");
+      return;
+    }
     setStatus("loading");
     try {
-      if (challenge) await completeNewPassword(challenge, newPassword);
+      if (type === "NEW_PASSWORD_REQUIRED") await completeNewPassword(challenge, newPassword);
+      else if (type === "MFA_SETUP") await finishTotpSetup(challenge, mfaCode);
+      else if (type === "SOFTWARE_TOKEN_MFA") await answerTotp(challenge, mfaCode);
       else await signIn(identifier, password);
       setStatus("success");
       navTimer.current = setTimeout(() => navigate("/dashboard"), 800);
     } catch (err) {
-      setStatus("idle");
-      if (err.code === "Challenge" && err.challenge === "NEW_PASSWORD_REQUIRED") {
-        setChallenge({ username: err.username, session: err.session });
-        setPassword("");
-        setError("");
-        return;
+      let failure = err;
+      if (err.code === "Challenge") {
+        try {
+          await enterChallenge(err);
+          setStatus("idle");
+          return;
+        } catch (setupErr) {
+          failure = setupErr;
+        }
       }
-      if (challenge && /expirada/.test(err.message || "")) setChallenge(null);
-      setError(err.message || "Não foi possível acessar.");
+      setStatus("idle");
+      setMfaCode("");
+      // sessão do Cognito vencida: volta para o CPF e senha
+      if (challenge && /expirada|esgotado/.test(failure.message || "")) setChallenge(null);
+      setError(failure.message || "Não foi possível acessar.");
       animateCard(
         cardScope.current,
         { x: [0, -10, 10, -8, 8, -4, 4, 0] },
@@ -217,7 +251,50 @@ export default function Login() {
               )}
 
               <form onSubmit={handleSubmit} noValidate>
-                {challenge ? (
+                {challenge && challenge.type !== "NEW_PASSWORD_REQUIRED" ? (
+                  <motion.div
+                    className="new-password"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: EASE }}
+                  >
+                    {challenge.type === "MFA_SETUP" ? (
+                      <>
+                        <p className="login-idle" role="status">
+                          Verificação em duas etapas: abra um app autenticador (Google Authenticator,
+                          Microsoft Authenticator ou similar), leia o QR code e digite o código gerado.
+                        </p>
+                        <img className="mfa-qr" src={challenge.qr} alt="QR code para o app autenticador" width={176} height={176} />
+                        <p className="mfa-secret">
+                          Sem câmera? Digite esta chave no app:
+                          <code>{challenge.secret.match(/.{1,4}/g).join(" ")}</code>
+                        </p>
+                      </>
+                    ) : (
+                      <p className="login-idle" role="status">
+                        Digite o código de 6 dígitos do seu app autenticador.
+                      </p>
+                    )}
+                    <label htmlFor="mfa-code">Código do app autenticador</label>
+                    <div className={`input-wrap${mfaCode ? " has-value" : ""}`}>
+                      <Smartphone size={18} className="input-icon" />
+                      <input
+                        id="mfa-code"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={mfaCode}
+                        onChange={(e) => {
+                          setMfaCode(e.target.value.replace(/\D/g, ""));
+                          if (error) setError("");
+                        }}
+                        required
+                      />
+                    </div>
+                  </motion.div>
+                ) : challenge ? (
                   <motion.div
                     className="new-password"
                     initial={{ opacity: 0, y: 10 }}
@@ -435,7 +512,13 @@ export default function Login() {
                           exit={{ opacity: 0, y: -8 }}
                           transition={{ duration: 0.2 }}
                         >
-                          {challenge ? "Salvar senha e entrar" : "Acessar Plataforma"}
+                          {challenge?.type === "NEW_PASSWORD_REQUIRED"
+                            ? "Salvar senha e entrar"
+                            : challenge?.type === "MFA_SETUP"
+                              ? "Ativar e entrar"
+                              : challenge
+                                ? "Confirmar código"
+                                : "Acessar Plataforma"}
                           <ArrowRight size={16} className="btn-arrow" />
                         </motion.span>
                       )}

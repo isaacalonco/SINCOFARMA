@@ -133,7 +133,9 @@ Resources:
         RecoveryMechanisms:
           - { Name: verified_email, Priority: 1 }
       AutoVerifiedAttributes: [email]
-      MfaConfiguration: "OFF"
+      # MFA obrigatório por app autenticador (TOTP); o painel conduz o cadastro no primeiro login
+      MfaConfiguration: "ON"
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
       Schema:
         - { Name: name, AttributeDataType: String, Mutable: true, Required: true }
         - { Name: email, AttributeDataType: String, Mutable: true, Required: true }
@@ -154,6 +156,7 @@ Resources:
         - ALLOW_REFRESH_TOKEN_AUTH
       PreventUserExistenceErrors: ENABLED
       EnableTokenRevocation: true
+      AuthSessionValidity: 10 # minutos para concluir senha nova e MFA (dá tempo de instalar o app)
       AccessTokenValidity: 15
       IdTokenValidity: 15
       RefreshTokenValidity: 12 # um plantão; depois disso, novo login

@@ -29,6 +29,21 @@ export async function completeNewPassword(challenge, newPassword) {
   return session.start(tokens);
 }
 
+/** MFA obrigatório, primeiro login: segredo para o app autenticador. */
+export const startTotpSetup = (challenge) => cognito.startTotpSetup(challenge);
+
+/** Confere o primeiro código do app autenticador e entra. */
+export async function finishTotpSetup(setup, code) {
+  const tokens = await cognito.finishTotpSetup(setup, code);
+  return session.start(tokens);
+}
+
+/** Login com MFA: código de 6 dígitos do app autenticador. */
+export async function answerTotp(challenge, code) {
+  const tokens = await cognito.answerTotp(challenge, code);
+  return session.start(tokens);
+}
+
 export function currentUser() {
   if (AUTH_MODE === "cognito") return session.storedUser();
   try {
