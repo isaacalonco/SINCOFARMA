@@ -1,6 +1,4 @@
-/* Nova Triagem Clínica
-   As cores herdam as variáveis do sistema (--ink, --muted, --primary) quando existirem;
-   os valores depois da vírgula são o fallback tirado dos prints. */
+/* Nova Triagem Clínica*/
 
 .triagem {
   --tg-ink: var(--ink, #14213d);
@@ -15,12 +13,11 @@
 
   display: grid;
   gap: 1.1rem;
-  /* mesmo afastamento da barra de busca (esquerda) e dos demais cartões (direita) */
   padding: 0 2rem 1.5rem 2.25rem;
   color: var(--tg-ink);
 }
 
-/* ---------- cabeçalho ---------- */
+/* Cabeçalho */
 .tg-header {
   display: flex;
   flex-wrap: wrap;
@@ -40,7 +37,7 @@
 }
 .tg-badge--ok { background: var(--tg-ok-bg); color: var(--tg-ok); }
 
-/* ---------- cartões ---------- */
+/* Cartões */
 .tg-card {
   scroll-margin-top: 5rem;
   padding: 1.25rem 1.4rem;
@@ -51,7 +48,7 @@
 .tg-card h2 { margin: 0; font-size: 0.95rem; font-weight: 700; text-transform: uppercase; }
 .tg-card > .tg-sub { margin-bottom: 0.9rem; }
 
-/* ---------- etapas ---------- */
+/* Etapas */
 .tg-steps { display: grid; gap: 0.15rem; margin: 0; padding: 0; list-style: none; }
 .tg-step {
   display: flex;
@@ -94,7 +91,7 @@
 .tg-step--active .tg-step-state { color: var(--tg-primary); }
 .tg-step-title { display: block; font-size: 0.9rem; font-weight: 600; }
 
-/* ---------- campos ---------- */
+/* Campos */
 .tg-grid { display: grid; gap: 0.75rem; }
 .tg-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tg-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -171,7 +168,7 @@
 }
 .tg-chip button:focus-visible { outline: 2px solid var(--tg-primary); }
 
-/* ---------- classificação de risco ---------- */
+/* Classificação de risco */
 .tg-risk {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -221,7 +218,7 @@
 
 .tg-counter { margin: 0.6rem 0 0; font-size: 0.78rem; color: var(--tg-muted); }
 
-/* ---------- rodapé de ações ---------- */
+/* Rodapé de ações */
 .tg-footer {
   position: sticky;
   bottom: 0.75rem;
@@ -260,7 +257,7 @@
   white-space: nowrap;
 }
 
-/* ---------- responsivo ---------- */
+/* Responsivo */
 @media (max-width: 900px) {
   .tg-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tg-risk { grid-template-columns: repeat(3, minmax(0, 1fr)); }
