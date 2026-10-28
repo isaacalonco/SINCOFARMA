@@ -15,6 +15,7 @@ import {
 import { STATUS } from "../data/catalog";
 import { useClinic, matchesQuery } from "../contexts/clinic";
 import SpotlightCard from "./SpotlightCard";
+import { isReady } from "../config/app";
 import { initials } from "../utils/initials";
 
 const FILTERS = [
@@ -32,7 +33,7 @@ const ACTIONS = {
 
 export default function VisitsTable({
   title = "Últimos Atendimentos Farmacêuticos",
-  subtitle = "Registros recentes de acolhimento clínico na Unidade Asa Sul",
+  subtitle = "Registros recentes de acolhimento clínico na unidade",
   limit,
   lockedFilter,
   showViewAll = false,
@@ -40,11 +41,14 @@ export default function VisitsTable({
 }) {
   const { visits, query, setQuery, openVisit } = useClinic();
   const [filter, setFilter] = useState(lockedFilter ?? "all");
+  const [expanded, setExpanded] = useState(false);
+  const listPage = isReady("/atendimentos");
 
   const filtered = visits
     .filter((v) => filter === "all" || v.status === filter)
     .filter((v) => matchesQuery(v, query));
-  const visible = limit && !query ? filtered.slice(0, limit) : filtered;
+  const cut = limit && !query && !expanded;
+  const visible = cut ? filtered.slice(0, limit) : filtered;
 
   return (
     <SpotlightCard index={delay} className="table-card">
@@ -68,11 +72,19 @@ export default function VisitsTable({
               <ChevronDown size={14} className="chev" aria-hidden="true" />
             </label>
           )}
-          {showViewAll && (
-            <Link to="/atendimentos" className="link-arrow">
-              Ver todos ({visits.length}) <ArrowRight size={14} />
-            </Link>
-          )}
+          {showViewAll &&
+            (listPage ? (
+              <Link to="/atendimentos" className="link-arrow">
+                Ver todos ({visits.length}) <ArrowRight size={14} />
+              </Link>
+            ) : (
+              limit && filtered.length > limit && !query && (
+                <button type="button" className="link-arrow link-btn" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+                  {expanded ? "Mostrar menos" : `Ver todos (${filtered.length})`}
+                  <ArrowRight size={14} className={expanded ? "rot-up" : "rot-down"} />
+                </button>
+              )
+            ))}
         </div>
       </header>
 
@@ -206,12 +218,18 @@ export default function VisitsTable({
         </table>
       </div>
 
-      {limit && !query && filtered.length > limit && (
+      {cut && filtered.length > limit && (
         <div className="table-more">
           Mostrando {limit} de {filtered.length} ·{" "}
-          <Link to="/atendimentos" className="link-arrow">
-            ver lista completa <ArrowRight size={14} />
-          </Link>
+          {listPage ? (
+            <Link to="/atendimentos" className="link-arrow">
+              ver lista completa <ArrowRight size={14} />
+            </Link>
+          ) : (
+            <button type="button" className="link-arrow link-btn" onClick={() => setExpanded(true)}>
+              mostrar todos <ArrowRight size={14} className="rot-down" />
+            </button>
+          )}
         </div>
       )}
     </SpotlightCard>

@@ -551,7 +551,7 @@ export default function NovaTriagem() {
         >
           Cancelar
         </motion.button>
-        <p>Certificação Digital ICP-Brasil habilitada · {pharmacist}{crf}</p>
+        <p>Responsável técnico: {pharmacist}{crf}</p>
         <motion.button
           type="submit"
           className="tg-btn tg-btn--primary"

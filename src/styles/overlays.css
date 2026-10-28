@@ -630,3 +630,20 @@
   overflow: auto;
   max-height: 200px;
 }
+
+/* ---------- itens ainda em construção ---------- */
+.sb-soon {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.link-btn { border: 0; background: transparent; padding: 0; font: inherit; cursor: pointer; }
+.link-arrow .rot-down { transform: rotate(90deg); }
+.link-arrow .rot-up { transform: rotate(-90deg); }
+span.legend-link { cursor: default; }
+span.legend-link:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; border-radius: 4px; }

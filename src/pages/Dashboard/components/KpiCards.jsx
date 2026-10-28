@@ -5,6 +5,7 @@ import CountUp from "../../../components/CountUp";
 import { useSpotlightTilt } from "../../../hooks/useSpotlightTilt";
 import LightBeams from "../../../components/LightBeams";
 import { EASE } from "../../../utils/motion";
+import { isReady } from "../../../config/app";
 
 const MotionLink = motion.create(Link);
 
@@ -35,7 +36,7 @@ export default function KpiCards({ stats, loading = false }) {
 
   return (
     <section className={`kpis${loading ? " is-loading" : ""}`} aria-busy={loading}>
-      <KpiCard to="/atendimentos" index={0} className="kpi--primary kpi--link">
+      <KpiCard to={isReady("/atendimentos") ? "/atendimentos" : undefined} index={0} className={`kpi--primary${isReady("/atendimentos") ? " kpi--link" : ""}`}>
         <LightBeams className="beams--light" />
         <span className="kpi-glow" aria-hidden="true" />
         <header className="kpi-head">
@@ -86,7 +87,7 @@ export default function KpiCards({ stats, loading = false }) {
         </div>
       </KpiCard>
 
-      <KpiCard to="/encaminhamentos" index={2} className="kpi--link">
+      <KpiCard to={isReady("/encaminhamentos") ? "/encaminhamentos" : undefined} index={2} className={isReady("/encaminhamentos") ? "kpi--link" : ""}>
         <header className="kpi-head">
           <span className="kpi-icon kpi-icon--navy"><PersonStanding size={16} /></span>
           <span>ENCAMINHAMENTOS<br />SES-DF</span>

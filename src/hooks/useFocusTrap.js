@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -11,6 +11,13 @@ const FOCUSABLE =
  * - ao fechar, devolve o foco ao elemento que estava focado antes.
  */
 export function useFocusTrap(ref, active, { onClose, initialFocus } = {}) {
+  // a função de fechar pode mudar a cada render do pai; guardada em ref para
+  // não desmontar/remontar a captura de foco enquanto o diálogo está aberto
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!active) return undefined;
     const container = ref.current;
@@ -29,7 +36,7 @@ export function useFocusTrap(ref, active, { onClose, initialFocus } = {}) {
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (e.key !== "Tab") return;
@@ -61,7 +68,7 @@ export function useFocusTrap(ref, active, { onClose, initialFocus } = {}) {
         setTimeout(() => previous.isConnected && previous.focus({ preventScroll: true }), 0);
       }
     };
-  }, [ref, active, onClose, initialFocus]);
+  }, [ref, active, initialFocus]);
 }
 
 /** Bloqueia a rolagem do body e marca o resto da página como inerte. */

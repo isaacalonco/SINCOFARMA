@@ -89,7 +89,7 @@ export default function WeeklyChart({ week, todayIndex, historicAverage = 17 }) 
 
       <footer className="chart-foot">
         <span>
-          <Info size={14} /> Sincronização contínua com banco de dados regional (SES-DF).
+          <Info size={14} /> Média histórica da unidade: {historicAverage} triagens por dia.
         </span>
         <b>Total: {total} triagens registradas até hoje</b>
       </footer>

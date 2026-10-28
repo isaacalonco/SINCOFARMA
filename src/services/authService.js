@@ -6,7 +6,8 @@ export async function login(identifier, password) {
   if (password === "12345678") {
     return {
       token: "fake-token",
-      user: { name: "Dra. Ana Souza", crf: "CRF-DF 4192 · RT", identifier },
+      // perfil vindo do servidor no futuro (nome, CRF, se está em plantão)
+      user: { name: "Dra. Ana Souza", crf: "CRF-DF 4192 · RT", onDuty: true, identifier },
     };
   }
   throw new Error("Credenciais inválidas.");

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Menu, X, WifiOff } from "lucide-react";
@@ -21,6 +21,7 @@ export default function AppLayout() {
   const location = useLocation();
   const outlet = useOutlet();
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
   const searchRef = useRef(null);
 
   // atalho "/" foca a busca
@@ -55,7 +56,7 @@ export default function AppLayout() {
     <div className="dash">
       <Sidebar
         open={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={closeMenu}
         user={user}
         onSignOut={handleSignOut}
       />

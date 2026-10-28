@@ -11,12 +11,14 @@ import {
   EyeClosed,
   Check,
   AlertCircle,
+  TriangleAlert,
 } from "lucide-react";
 import { useAuth } from "../../contexts/auth";
 import logo from "../../assets/logo-sincofarma.webp";
 import LightBeams from "../../components/LightBeams";
 import { EASE, pulse, rise as riseBase } from "../../utils/motion";
 import { useSpotlightTilt } from "../../hooks/useSpotlightTilt";
+import { COMPLIANCE, DEMO_MODE } from "../../config/app";
 import "./Login.css";
 
 // entrada escalonada de cada bloco do card (mesma linguagem do painel)
@@ -363,40 +365,53 @@ export default function Login() {
                 transition={{ delay: 0.75, duration: 0.7, ease: EASE }}
               />
 
-              <div className="badges">
-                {[
-                  { tag: "ICP", title: "ICP-Brasil", desc: "Certificação Digital Homologada" },
-                  { tag: "LGPD", title: "Em Conformidade", desc: "Dados em Saúde Protegidos" },
-                ].map((b, i) => (
-                  <motion.div
-                    key={b.tag}
-                    className="badge"
-                    {...rise(7 + i)}
-                    whileHover={{ y: -3, transition: { type: "spring", stiffness: 400, damping: 15 } }}
-                  >
-                    <span className="badge-tag">{b.tag}</span>
-                    <div>
-                      <strong>{b.title}</strong>
-                      <small>{b.desc}</small>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+              {(COMPLIANCE.icpBrasil || COMPLIANCE.lgpd) && (
+                <div className="badges">
+                  {[
+                    COMPLIANCE.icpBrasil && { tag: "ICP", title: "ICP-Brasil", desc: "Certificação Digital Homologada" },
+                    COMPLIANCE.lgpd && { tag: "LGPD", title: "Em Conformidade", desc: "Dados em Saúde Protegidos" },
+                  ]
+                    .filter(Boolean)
+                    .map((b, i) => (
+                      <motion.div
+                        key={b.tag}
+                        className="badge"
+                        {...rise(7 + i)}
+                        whileHover={{ y: -3, transition: { type: "spring", stiffness: 400, damping: 15 } }}
+                      >
+                        <span className="badge-tag">{b.tag}</span>
+                        <div>
+                          <strong>{b.title}</strong>
+                          <small>{b.desc}</small>
+                        </div>
+                      </motion.div>
+                    ))}
+                </div>
+              )}
 
-              <motion.div className="notice" {...rise(9)}>
-                <motion.span
-                  className="notice-icon"
-                  animate={{ opacity: [0.6, 1, 0.6] }}
-                  transition={pulse(3)}
-                >
-                  <Info size={16} />
-                </motion.span>
-                <p>
-                  <strong>Aviso RNDS:</strong> As sessões clínicas, receituários e
-                  triagens homologadas são sincronizados com a Rede Nacional de
-                  Dados em Saúde (Ministério da Saúde).
-                </p>
-              </motion.div>
+              {DEMO_MODE ? (
+                <motion.div className="notice notice--warn" role="note" {...rise(8)}>
+                  <span className="notice-icon"><TriangleAlert size={16} /></span>
+                  <p>
+                    <strong>Ambiente de demonstração.</strong> Os dados exibidos são fictícios e
+                    ficam salvos só neste navegador. Não insira dados reais de pacientes.
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div className="notice" role="note" {...rise(8)}>
+                  <motion.span
+                    className="notice-icon"
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={pulse(3)}
+                  >
+                    <Info size={16} />
+                  </motion.span>
+                  <p>
+                    <strong>Acesso restrito.</strong> Uso exclusivo de farmacêuticos e gestores
+                    autorizados. As ações ficam registradas com seu usuário.
+                  </p>
+                </motion.div>
+              )}
             </section>
           </motion.div>
         </motion.div>

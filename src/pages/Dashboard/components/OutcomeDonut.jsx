@@ -5,6 +5,7 @@ import SpotlightCard from "../../../components/SpotlightCard";
 import { EASE } from "../../../utils/motion";
 import { OUTCOME_META } from "../../../data/catalog";
 import { monthLabel } from "../../../utils/dates";
+import { isReady } from "../../../config/app";
 import CountUp from "../../../components/CountUp";
 
 const R = 62;
@@ -102,16 +103,23 @@ export default function OutcomeDonut({ outcomes }) {
             onBlur={() => setActive(null)}
             style={{ "--c": s.color }}
           >
-            <Link
-              to={s.key === "referred" ? "/encaminhamentos" : "/atendimentos"}
-              className="legend-link"
-              aria-label={`${s.label}: ${s.percent}%, ${s.count} atendimentos`}
-            >
-              <i className="sq" />
-              <span>{s.label}</span>
-              <b>{s.percent}%</b>
-              <small>({s.count})</small>
-            </Link>
+            {(() => {
+              const to = s.key === "referred" ? "/encaminhamentos" : "/atendimentos";
+              const inner = (
+                <>
+                  <i className="sq" />
+                  <span>{s.label}</span>
+                  <b>{s.percent}%</b>
+                  <small>({s.count})</small>
+                </>
+              );
+              const label = `${s.label}: ${s.percent}%, ${s.count} atendimentos`;
+              return isReady(to) ? (
+                <Link to={to} className="legend-link" aria-label={label}>{inner}</Link>
+              ) : (
+                <span className="legend-link" tabIndex={0} aria-label={label}>{inner}</span>
+              );
+            })()}
           </motion.li>
         ))}
       </ul>

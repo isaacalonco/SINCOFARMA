@@ -440,3 +440,11 @@ label.is-focused { color: var(--blue-500); }
   line-height: 1.5;
   color: var(--gray-500);
 }
+
+.notice--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.notice--warn:hover { border-color: #fcd34d; }
+.hr-gap { margin-top: 0; }

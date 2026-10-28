@@ -63,11 +63,15 @@ export default function Dashboard() {
           <motion.h1 {...rise(1)}>Dashboard Clínico</motion.h1>
           <motion.p className="hello" {...rise(2)}>
             {greeting()}, {user?.name ?? "farmacêutico"}
-            <span className="sep">•</span>
-            <span className="live-pill">
-              <i />
-              Plantão RT ativo
-            </span>
+            {user?.onDuty && (
+              <>
+                <span className="sep">•</span>
+                <span className="live-pill">
+                  <i />
+                  Plantão RT ativo
+                </span>
+              </>
+            )}
           </motion.p>
           <motion.p className="unit" {...rise(3)}>{unit}</motion.p>
         </div>
