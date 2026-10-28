@@ -7,7 +7,7 @@ import { useClinic } from "../../contexts/clinic";
 import { EASE } from "../../utils/motion";
 import "./NovaTriagem.css";
 
-/* ---------- constantes ---------- */
+/* Constantes */
 
 const RISK_LEVELS = [
   { id: "azul", label: "Azul", hint: "Não urgente" },
@@ -19,13 +19,12 @@ const RISK_LEVELS = [
 
 const RED_FLAGS = ["Dor torácica", "Dispneia", "Déficit neurológico", "Síncope"];
 
-// Exemplo curto, só para o campo "Buscar código". Troque por uma busca real.
+/* Apenas exemplo. Trocar por uma busca real.*/
 const CODE_SUGGESTIONS = [
   "CIAP-2 A03 · Febre",
   "CIAP-2 N01 · Cefaleia",
   "CIAP-2 R05 · Tosse",
   "CIAP-2 R02 · Dispneia",
-  "CID-10 R07.4 · Dor torácica não especificada",
 ];
 
 const OBS_LIMIT = 500;
@@ -38,12 +37,11 @@ const INITIAL = {
   risco: "", redFlags: [], observacoes: "",
 };
 
-/* ---------- utilitários ---------- */
+/* Utilitários */
 
 const digits = (v) => v.replace(/\D/g, "");
 const toNum = (v) => Number(String(v).replace(",", "."));
 
-// "#" = dígito. Não deixa separador sobrando no fim.
 function applyMask(value, pattern) {
   const d = digits(value);
   let out = "";
@@ -79,11 +77,11 @@ function isValidDate(masked) {
   );
 }
 
-// Placeholder: o número real do protocolo deve vir do backend.
+/* Placeholder: o número real do protocolo deve vir do backend */
 const newProtocol = () =>
   `SIN-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1e6)).padStart(6, "0")}`;
 
-/* ---------- componentes pequenos ---------- */
+/* Componentes pequenos */
 
 function Field({ label, invalid, error, className = "", children }) {
   return (
@@ -105,7 +103,6 @@ function Section({ id, n, title, subtitle, children }) {
   );
 }
 
-// Campo de lista: digite e pressione Enter para adicionar; Backspace remove o último.
 function ChipField({ label, placeholder, items, onChange, className = "" }) {
   const id = useId();
   const [text, setText] = useState("");
@@ -164,7 +161,7 @@ function ChipField({ label, placeholder, items, onChange, className = "" }) {
   );
 }
 
-/* ---------- página ---------- */
+/* Página */
 
 export default function NovaTriagem() {
   const navigate = useNavigate();
@@ -221,8 +218,6 @@ export default function NovaTriagem() {
     const pending = stepDefs.find((s) => s.n < 6 && !s.ok);
     if (pending) return goTo(pending.target);
 
-    // O addVisit já completa id e horário e mostra o toast "Triagem de X registrada".
-    // Se as chaves abaixo diferirem das de seedVisits (Dashboard/data), ajuste aqui.
     addVisit({
       ...form,
       name: form.nome.trim(),
@@ -240,7 +235,6 @@ export default function NovaTriagem() {
       form.redFlags.includes(flag) ? form.redFlags.filter((f) => f !== flag) : [...form.redFlags, flag]
     );
 
-  // Ajuste os nomes dos campos conforme o objeto "user" do seu AuthContext.
   const pharmacist = user?.name ?? "Farmacêutico(a) responsável";
   const crf = user?.crf ? ` (${user.crf})` : "";
 
