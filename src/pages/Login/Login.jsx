@@ -1,14 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  motion,
-  AnimatePresence,
-  useAnimate,
-  useMotionTemplate,
-  useMotionValue,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import { motion, AnimatePresence, useAnimate } from "framer-motion";
 import {
   ShieldCheck,
   IdCard,
@@ -20,18 +12,15 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
-import logo from "../../assets/logo-sincofarma.svg";
+import { useAuth } from "../../contexts/auth";
+import logo from "../../assets/logo-sincofarma.webp";
 import LightBeams from "../../components/LightBeams";
-import { EASE, pulse } from "../../utils/motion";
+import { EASE, pulse, rise as riseBase } from "../../utils/motion";
+import { useSpotlightTilt } from "../../hooks/useSpotlightTilt";
 import "./Login.css";
 
-// entrada escalonada de cada bloco do card
-const rise = (i) => ({
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0 },
-  transition: { delay: 0.35 + i * 0.06, duration: 0.55, ease: EASE },
-});
+// entrada escalonada de cada bloco do card (mesma linguagem do painel)
+const rise = (i) => riseBase(i, 0.35);
 
 export default function Login() {
   const [identifier, setIdentifier] = useState("");
@@ -39,40 +28,20 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(null);
   const [error, setError] = useState("");
+  const [help, setHelp] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | loading | success
 
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const [cardScope, animateCard] = useAnimate();
+  const navTimer = useRef(null);
+  useEffect(() => () => clearTimeout(navTimer.current), []);
 
   const loading = status === "loading";
   const success = status === "success";
 
-  // ---- efeito 3D + holofote seguindo o mouse ----
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const sx = useSpring(mx, { stiffness: 150, damping: 18, mass: 0.4 });
-  const sy = useSpring(my, { stiffness: 150, damping: 18, mass: 0.4 });
-  const rotateX = useTransform(sy, [-300, 300], [8, -8]);
-  const rotateY = useTransform(sx, [-300, 300], [-8, 8]);
-  const lightX = useMotionValue(-999);
-  const lightY = useMotionValue(-999);
-  const spotlight = useMotionTemplate`radial-gradient(260px circle at ${lightX}px ${lightY}px, rgba(58, 160, 232, 0.12), transparent 70%)`;
-
-  function handleMouseMove(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mx.set(e.clientX - rect.left - rect.width / 2);
-    my.set(e.clientY - rect.top - rect.height / 2);
-    lightX.set(e.clientX - rect.left);
-    lightY.set(e.clientY - rect.top);
-  }
-
-  function handleMouseLeave() {
-    mx.set(0);
-    my.set(0);
-    lightX.set(-999);
-    lightY.set(-999);
-  }
+  // efeito 3D + holofote seguindo o mouse (mesmo hook dos cards do painel)
+  const tilt = useSpotlightTilt(8);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -82,7 +51,7 @@ export default function Login() {
     try {
       await signIn(identifier, password);
       setStatus("success");
-      setTimeout(() => navigate("/dashboard"), 800);
+      navTimer.current = setTimeout(() => navigate("/dashboard"), 800);
     } catch (err) {
       setStatus("idle");
       setError(err.message || "Não foi possível acessar.");
@@ -121,12 +90,12 @@ export default function Login() {
           <div className="glow glow--top" />
           <motion.div
             className="glow glow--top-pulse"
-            animate={{ opacity: [0.35, 0.7, 0.35], scale: [0.98, 1.04, 0.98] }}
+            animate={{ opacity: [0.35, 0.7, 0.35] }}
             transition={pulse(8)}
           />
           <motion.div
             className="glow glow--bottom"
-            animate={{ opacity: [0.35, 0.6, 0.35], scale: [1, 1.1, 1] }}
+            animate={{ opacity: [0.35, 0.6, 0.35] }}
             transition={pulse(6, 1)}
           />
           <motion.div
@@ -149,9 +118,8 @@ export default function Login() {
         >
           <motion.div
             className="login-tilt"
-            style={{ rotateX, rotateY }}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
+            style={tilt.style}
+            {...tilt.handlers}
           >
             <motion.div
               className={`card-glow${success ? " is-success" : ""}`}
@@ -161,7 +129,7 @@ export default function Login() {
             />
 
             <section ref={cardScope} className={`login-card${success ? " is-success" : ""}`}>
-              <motion.div className="card-spotlight" style={{ background: spotlight }} aria-hidden="true" />
+              <div className="card-spotlight" aria-hidden="true" />
               <div className="card-pattern" aria-hidden="true" />
               <LightBeams />
 
@@ -205,7 +173,7 @@ export default function Login() {
               <form onSubmit={handleSubmit} noValidate>
                 <motion.div {...rise(3)}>
                   <label htmlFor="identifier" className={focused === "identifier" ? "is-focused" : ""}>
-                    NÚMERO DO CRF-DF OU CPF
+                    Número do CRF-DF ou CPF
                   </label>
                   <motion.div
                     className={`input-wrap${identifier ? " has-value" : ""}${focused === "identifier" ? " is-focused" : ""}`}
@@ -236,9 +204,17 @@ export default function Login() {
                 <motion.div {...rise(4)}>
                   <div className="label-row">
                     <label htmlFor="password" className={focused === "password" ? "is-focused" : ""}>
-                      SENHA DE ACESSO
+                      Senha de acesso
                     </label>
-                    <a href="#" className="link-underline">Esqueceu a senha?</a>
+                    <button
+                      type="button"
+                      className="link-underline link-btn"
+                      onClick={() => setHelp((v) => !v)}
+                      aria-expanded={help}
+                      aria-controls="login-help"
+                    >
+                      Esqueceu a senha?
+                    </button>
                   </div>
                   <motion.div
                     className={`input-wrap${password ? " has-value" : ""}${focused === "password" ? " is-focused" : ""}`}
@@ -288,6 +264,21 @@ export default function Login() {
                   </motion.div>
                 </motion.div>
 
+                <AnimatePresence initial={false}>
+                  {help && (
+                    <motion.p
+                      key="help"
+                      id="login-help"
+                      className="login-help"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      A redefinição de senha é feita pelo gestor da unidade. Procure a administração
+                      da farmácia com seu número de CRF.
+                    </motion.p>
+                  )}
+                </AnimatePresence>
                 <AnimatePresence>
                   {error && (
                     <motion.div

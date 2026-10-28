@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ClipboardCheck, Pill, PersonStanding, Timer } from "lucide-react";
-import { useCountUp } from "./useCountUp";
+import CountUp from "../../../components/CountUp";
 import { useSpotlightTilt } from "../../../hooks/useSpotlightTilt";
 import LightBeams from "../../../components/LightBeams";
-import { EASE, pulse } from "../../../utils/motion";
+import { EASE } from "../../../utils/motion";
 
 const MotionLink = motion.create(Link);
 
@@ -30,35 +30,29 @@ function KpiCard({ to, index, className = "", children }) {
   );
 }
 
-export default function KpiCards({ stats }) {
-  const visits = useCountUp(stats.total, { delay: 250 });
-  const resolution = useCountUp(stats.resolutionPercent, { delay: 330 });
-  const mip = useCountUp(stats.outcomes.done, { delay: 330 });
-  const refs = useCountUp(stats.referralsToday, { delay: 410 });
-  const minutes = useCountUp(stats.triageMinutes, { delay: 490 });
+export default function KpiCards({ stats, loading = false }) {
   const goalPct = Math.round(stats.goalProgress * 100);
 
   return (
-    <section className="kpis">
+    <section className={`kpis${loading ? " is-loading" : ""}`} aria-busy={loading}>
       <KpiCard to="/atendimentos" index={0} className="kpi--primary kpi--link">
         <LightBeams className="beams--light" />
-        <motion.span
-          className="kpi-glow"
-          aria-hidden="true"
-          animate={{ opacity: [0.4, 0.85, 0.4], scale: [0.95, 1.05, 0.95] }}
-          transition={pulse(5)}
-        />
+        <span className="kpi-glow" aria-hidden="true" />
         <header className="kpi-head">
           <ClipboardCheck size={16} />
           <span>ATENDIMENTOS HOJE</span>
         </header>
         <div className="kpi-value-row">
-          <strong className="kpi-value">{visits}</strong>
-          <span className="kpi-caption">no mês<br />corrente</span>
+          <strong className="kpi-value"><CountUp value={stats.todayTotal} delay={300} /></strong>
+          <span className="kpi-caption">registrados<br />hoje</span>
           <span className="kpi-chip" title="Atendimentos em andamento">
             <span className="kpi-chip-dot" />
             {stats.waiting} em<br />espera
           </span>
+        </div>
+        <div className="kpi-month">
+          <span>Mês corrente</span>
+          <b><CountUp value={stats.monthTotal} delay={300} /> / {stats.monthGoal}</b>
         </div>
         <div
           className="kpi-progress"
@@ -83,12 +77,12 @@ export default function KpiCards({ stats }) {
           <span>RESOLUÇÃO LOCAL</span>
         </header>
         <div className="kpi-value-row">
-          <strong className="kpi-value">{resolution}%</strong>
+          <strong className="kpi-value"><CountUp value={stats.resolutionPercent} delay={380} suffix="%" /></strong>
           <span className="kpi-caption">resolvidos em<br />consultório</span>
         </div>
         <div className="kpi-foot">
           <span>MIPs &amp;<br />Aconselhamento</span>
-          <b className="tone-blue">{mip}<br />pacientes</b>
+          <b className="tone-blue"><CountUp value={stats.outcomes.done} delay={380} /><br />pacientes</b>
         </div>
       </KpiCard>
 
@@ -98,7 +92,7 @@ export default function KpiCards({ stats }) {
           <span>ENCAMINHAMENTOS<br />SES-DF</span>
         </header>
         <div className="kpi-value-row">
-          <strong className="kpi-value">{refs}</strong>
+          <strong className="kpi-value"><CountUp value={stats.referralsToday} delay={460} /></strong>
           <span className="kpi-caption">para UBS / UPA / HRAN</span>
         </div>
         <div className="kpi-foot">
@@ -121,7 +115,7 @@ export default function KpiCards({ stats }) {
           <span>TEMPO MÉDIO TRIAGEM</span>
         </header>
         <div className="kpi-value-row">
-          <strong className="kpi-value kpi-value--stack">{minutes}<br />min</strong>
+          <strong className="kpi-value kpi-value--stack"><CountUp value={stats.triageMinutes} delay={540} /><br />min</strong>
           <span className="kpi-caption">protocolo<br />Manchester</span>
         </div>
         <div className="kpi-foot">

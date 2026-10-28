@@ -1,14 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { CircleCheck, Info, TriangleAlert, X } from "lucide-react";
+import { CircleCheck, Info, TriangleAlert, CircleX, X } from "lucide-react";
 import { useClinic } from "../contexts/clinic";
 
-const ICONS = { success: CircleCheck, info: Info, warn: TriangleAlert };
+const ICONS = { success: CircleCheck, info: Info, warn: TriangleAlert, error: CircleX };
 
 export default function Toasts() {
   const { toasts, dismissToast } = useClinic();
 
   return (
-    <div className="toasts" aria-live="polite">
+    <div className="toasts" aria-live="assertive">
       <AnimatePresence initial={false}>
         {toasts.map((t) => {
           const Icon = ICONS[t.tone] ?? Info;
@@ -31,7 +31,7 @@ export default function Toasts() {
                 className="toast-timer"
                 initial={{ scaleX: 1 }}
                 animate={{ scaleX: 0 }}
-                transition={{ duration: 3.8, ease: "linear" }}
+                transition={{ duration: t.tone === "error" ? 6 : 3.8, ease: "linear" }}
               />
             </motion.div>
           );

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Menu, X } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { Search, Menu, X, WifiOff } from "lucide-react";
+import { useAuth } from "../contexts/auth";
 import { useClinic } from "../contexts/clinic";
 import Sidebar from "../components/Sidebar";
 import VisitDrawer from "../components/VisitDrawer";
 import Toasts from "../components/Toasts";
-import { EASE, pulse } from "../utils/motion";
+import { EASE } from "../utils/motion";
 import "../styles/app.css";
 import "../styles/overlays.css";
 
@@ -16,7 +16,7 @@ const SEARCHABLE = ["/dashboard"];
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
-  const { query, setQuery } = useClinic();
+  const { query, setQuery, online } = useClinic();
   const navigate = useNavigate();
   const location = useLocation();
   const outlet = useOutlet();
@@ -63,16 +63,8 @@ export default function AppLayout() {
       <div className="dash-main">
         {/* brilhos de fundo, mesma linguagem do login */}
         <div className="dash-bg" aria-hidden="true">
-          <motion.div
-            className="dash-glow dash-glow--a"
-            animate={{ opacity: [0.5, 0.9, 0.5], scale: [0.96, 1.04, 0.96] }}
-            transition={pulse(9)}
-          />
-          <motion.div
-            className="dash-glow dash-glow--b"
-            animate={{ opacity: [0.35, 0.7, 0.35], scale: [1, 1.08, 1] }}
-            transition={pulse(7, 1.5)}
-          />
+          <div className="dash-glow dash-glow--a" />
+          <div className="dash-glow dash-glow--b" />
         </div>
 
         <motion.div
@@ -81,7 +73,13 @@ export default function AppLayout() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE }}
         >
-          <button className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="Abrir menu">
+          <button
+            className="menu-btn"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Abrir menu"
+            aria-expanded={menuOpen}
+            aria-controls="app-sidebar"
+          >
             <Menu size={20} />
           </button>
           <motion.label
@@ -133,18 +131,21 @@ export default function AppLayout() {
         </motion.div>
 
         {/* transição entre páginas */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            className="page"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35, ease: EASE }}
-          >
-            {outlet}
-          </motion.div>
-        </AnimatePresence>
+        {!online && (
+          <div className="offline-bar" role="status" aria-live="polite">
+            <WifiOff size={14} /> Sem conexão. Você pode continuar lendo; registros serão bloqueados até a rede voltar.
+          </div>
+        )}
+
+        <motion.div
+          key={location.pathname}
+          className="page"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+        >
+          {outlet}
+        </motion.div>
       </div>
 
       <VisitDrawer />

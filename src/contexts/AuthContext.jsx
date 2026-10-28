@@ -1,31 +1,41 @@
-import { createContext, useContext, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as authService from "../services/authService";
+import { AuthContext } from "./auth";
+import { UNAUTHORIZED_EVENT } from "../services/api";
+import { repository } from "../data";
 
-const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("user");
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = JSON.parse(localStorage.getItem("user"));
+      return saved && typeof saved === "object" && typeof saved.name === "string" ? saved : null;
+    } catch {
+      return null;
+    }
   });
 
-  async function signIn(identifier, password) {
+  const signIn = useCallback(async (identifier, password) => {
     const { token, user } = await authService.login(identifier, password);
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
-  }
+  }, []);
 
-  function signOut() {
-    localStorage.clear();
+  const signOut = useCallback(() => {
+    // só as chaves do app (não apaga dados de outras origens/ferramentas)
+    ["token", "user"].forEach((k) => localStorage.removeItem(k));
+    repository.clear();
     setUser(null);
-  }
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, signIn, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  // 401 vindo da API: encerra a sessão em qualquer tela
+  useEffect(() => {
+    window.addEventListener(UNAUTHORIZED_EVENT, signOut);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, signOut);
+  }, [signOut]);
+
+  const value = useMemo(() => ({ user, signIn, signOut }), [user, signIn, signOut]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-export const useAuth = () => useContext(AuthContext);

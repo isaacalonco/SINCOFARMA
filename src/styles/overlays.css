@@ -49,7 +49,7 @@
 
 /* ---------- sync ---------- */
 .sync-wrap { display: grid; justify-items: center; gap: 4px; }
-.sync-meta { font-size: 10px; color: var(--muted); }
+.sync-meta { font-size: 12px; color: var(--muted); }
 .sync-badge {
   display: grid;
   place-items: center;
@@ -59,7 +59,7 @@
   border-radius: 999px;
   background: var(--c-amber);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   animation: badge-pop 0.5s var(--ease-spring) both;
 }
@@ -85,7 +85,7 @@
   border-radius: 4px;
   background: #e0f4fa;
   color: #0e7490;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
 }
@@ -237,7 +237,7 @@
 .field { display: grid; gap: 6px; border: 0; min-width: 0; }
 .field label,
 .field legend {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--text);
@@ -273,7 +273,7 @@
 .field:focus-within label { color: var(--blue-500); }
 .field.has-error input { border-color: #f87171; background: #fff7f7; }
 .field.has-error input:focus { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.18); }
-.field-error { display: block; overflow: hidden; font-size: 11px; color: #c62828; }
+.field-error { display: block; overflow: hidden; font-size: 12px; color: #c62828; }
 
 /* controle segmentado */
 .segmented {
@@ -408,7 +408,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
@@ -424,7 +424,7 @@
   border: 1px solid var(--line);
 }
 .complaint-box h3 {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -509,3 +509,124 @@
 
 /* rede de segurança: nada dentro da área principal cria rolagem horizontal */
 .dash-main { overflow-x: clip; }
+
+/* ---------- filtro nativo (acessível por teclado e leitores) ---------- */
+.btn-filter { position: relative; cursor: pointer; }
+.btn-filter select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  padding-right: 4px;
+  cursor: pointer;
+  outline: 0;
+}
+.btn-filter:focus-within { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.12); background: #fff; }
+
+/* ---------- interruptor de animações (na sidebar) ---------- */
+.motion-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.motion-toggle:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.motion-toggle.is-reduced { color: #bfe9d2; }
+.motion-toggle-text { display: none; }
+.sb-user .motion-toggle { margin-right: -4px; }
+
+/* ---------- carregando página ---------- */
+.route-fallback { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100; background: rgba(26, 111, 181, 0.15); }
+.route-fallback-bar {
+  position: absolute; inset: 0 auto 0 0; width: 35%;
+  background: linear-gradient(90deg, transparent, var(--blue-500), transparent);
+  animation: route-loading 1s ease-in-out infinite;
+}
+@keyframes route-loading { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+/* gráfico: foco no teclado destaca a barra como o hover */
+.bar-col:focus-visible { outline: 0; }
+.bar-col:focus-visible .bar { box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.35); }
+
+/* ---------- estados de rede / erro ---------- */
+.offline-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #fde68a;
+}
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 14px;
+}
+.load-error span { flex: 1; }
+.kpis.is-loading .kpi { opacity: 0.6; }
+.toast--error { background: #7f1d1d; }
+.toast--error > svg { color: #fecaca; }
+
+.error-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f3f6fa;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+.error-card {
+  width: min(520px, 100%);
+  padding: 32px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #e6ebf2;
+  box-shadow: 0 20px 50px -24px rgba(10, 37, 64, 0.4);
+  text-align: center;
+}
+.error-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  background: #fee2e2;
+  color: #dc2626;
+}
+.error-card h1 { font-size: 22px; color: #0a2540; margin-bottom: 8px; }
+.error-card p { font-size: 14px; line-height: 1.5; color: #64748b; margin-bottom: 20px; }
+.error-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.error-detail {
+  margin-top: 20px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #0a2540;
+  color: #cfe6fa;
+  font-size: 11px;
+  text-align: left;
+  overflow: auto;
+  max-height: 200px;
+}

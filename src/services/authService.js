@@ -1,4 +1,4 @@
-import { api } from "./api";
+// import { api } from "./api"; // usar quando o backend existir
 
 export async function login(identifier, password) {
   // enquanto não há backend

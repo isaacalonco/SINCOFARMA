@@ -7,7 +7,15 @@
   pointer-events: none;
   z-index: 2;
 }
-.beam { position: absolute; display: block; }
+
+/* cada feixe mede 50% do lado; o ciclo tem 3,5s (2,5s de viagem + 1s de pausa) */
+.beam {
+  position: absolute;
+  display: block;
+  filter: blur(1.5px);
+  will-change: transform, opacity;
+  animation: beam-x 3.5s ease-in-out infinite, beam-glow 2.4s ease-in-out infinite;
+}
 .beam--top,
 .beam--bottom {
   height: 3px;
@@ -21,20 +29,47 @@
   background: linear-gradient(180deg, transparent, var(--beam), transparent);
 }
 .beam--top { top: 0; left: 0; }
-.beam--right { top: 0; right: 0; }
-.beam--bottom { bottom: 0; right: 0; }
-.beam--left { bottom: 0; left: 0; }
+.beam--right { top: 0; right: 0; animation-name: beam-y, beam-glow; animation-delay: 0.6s; }
+.beam--bottom { bottom: 0; left: 0; animation-name: beam-x-rev, beam-glow; animation-delay: 1.2s; }
+.beam--left { top: 0; left: 0; animation-name: beam-y-rev, beam-glow; animation-delay: 1.8s; }
 
 .corner {
   position: absolute;
   display: block;
   border-radius: 50%;
   background: var(--beam);
+  animation: corner-glow 2.2s ease-in-out infinite alternate;
 }
 .corner--tl { top: 0; left: 0; width: 5px; height: 5px; filter: blur(1px); }
-.corner--tr { top: 0; right: 0; width: 8px; height: 8px; filter: blur(2px); }
-.corner--br { bottom: 0; right: 0; width: 8px; height: 8px; filter: blur(2px); }
-.corner--bl { bottom: 0; left: 0; width: 5px; height: 5px; filter: blur(1px); }
+.corner--tr { top: 0; right: 0; width: 8px; height: 8px; filter: blur(2px); animation-delay: 0.5s; }
+.corner--br { bottom: 0; right: 0; width: 8px; height: 8px; filter: blur(2px); animation-delay: 1s; }
+.corner--bl { bottom: 0; left: 0; width: 5px; height: 5px; filter: blur(1px); animation-delay: 1.5s; }
+
+/* 71% do ciclo viajando, o resto parado fora da borda */
+@keyframes beam-x {
+  0%        { transform: translateX(-100%); }
+  71%, 100% { transform: translateX(200%); }
+}
+@keyframes beam-x-rev {
+  0%        { transform: translateX(200%); }
+  71%, 100% { transform: translateX(-100%); }
+}
+@keyframes beam-y {
+  0%        { transform: translateY(-100%); }
+  71%, 100% { transform: translateY(200%); }
+}
+@keyframes beam-y-rev {
+  0%        { transform: translateY(200%); }
+  71%, 100% { transform: translateY(-100%); }
+}
+@keyframes beam-glow {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+@keyframes corner-glow {
+  from { opacity: 0.3; }
+  to   { opacity: 0.8; }
+}
 
 /* variação clara para fundos azuis */
 .beams--light { --beam: #bdeaff; }

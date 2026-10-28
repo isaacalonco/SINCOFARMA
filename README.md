@@ -1,16 +1,71 @@
-# React + Vite
+# Sincofarma DF · Painel Clínico
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Painel de atendimento farmacêutico (triagem, desfechos e encaminhamentos) do Sincofarma DF.
+Front-end em React 19 + Vite 8, com framer-motion para animação.
 
-Currently, two official plugins are available:
+## Rodando
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
 
-## React Compiler
+No Windows, se o terminal tiver `NODE_ENV=production` definido, o `npm install` pula as
+dependências de desenvolvimento. Nesse caso use `NODE_ENV=development npm install`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Outros comandos:
 
-## Expanding the ESLint configuration
+```bash
+npm run build      # build de produção em dist/
+npm run preview    # serve o build local
+npm run lint       # ESLint
+npm test           # testes unitários (Vitest)
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Dados: simulado vs. API
+
+O app fala com os dados por um único ponto, `src/data/index.js`, que escolhe o repositório:
+
+- **sem `VITE_API_URL`** → `mockRepository`: dados de exemplo persistidos no `localStorage`,
+  com latência simulada. É o modo padrão para desenvolvimento e demonstração.
+- **com `VITE_API_URL`** → `apiRepository`: chama a API real via `src/services/api.js`
+  (JSON, token Bearer, timeout, 401 encerra a sessão).
+
+Copie `.env.example` para `.env` e preencha a URL para usar a API. O contrato esperado está
+documentado no topo de `src/data/apiRepository.js`.
+
+Os indicadores do painel são calculados no cliente por `computeStats` (`src/data/stats.js`),
+uma função pura coberta por testes.
+
+## Login (temporário)
+
+Enquanto não há backend de autenticação, `src/services/authService.js` aceita qualquer
+identificador com a senha `12345678`. **Isso precisa ser substituído antes de qualquer uso
+real**: o token é falso e a rota privada só verifica a existência do usuário no navegador.
+
+## Estrutura
+
+```
+src/
+  components/   peças compartilhadas (sidebar, tabela, painel do paciente, avisos…)
+  contexts/     AuthProvider, ClinicProvider (estado clínico), MotionPrefs (animações)
+  data/         repositórios (mock/API), catálogo do domínio, estatísticas, dados de exemplo
+  hooks/        foco em diálogos, tilt/holofote, online, montagem adiada
+  layouts/      AppLayout (sidebar + topo + rotas internas)
+  pages/        Login, Dashboard, NovaTriagem, EmBreve
+  services/     cliente HTTP e serviço de login
+  styles/       CSS global e do app
+  utils/        CPF/máscaras, datas, iniciais, linguagem de movimento
+```
+
+## Acessibilidade e movimento
+
+- Painéis e menu mobile prendem o foco e devolvem ao fechar; Esc fecha.
+- Tabela, gráficos e filtro funcionam por teclado.
+- O app segue `prefers-reduced-motion`. O botão ao lado de "Sair" alterna entre
+  automático, ligadas e reduzidas (fica salvo no navegador).
+
+## Deploy
+
+`vercel.json` reescreve todas as rotas para `index.html` (SPA). Os chunks são separados por
+biblioteca (`react`, `motion`, `icons`) e por página, com pré-carregamento após o login.

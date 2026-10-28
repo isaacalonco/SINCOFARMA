@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
+import { useDeferredMount } from "../../hooks/useDeferredMount";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Check, Stethoscope } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
+import { RefreshCw, Check, Stethoscope, TriangleAlert } from "lucide-react";
+import { useAuth } from "../../contexts/auth";
 import { useClinic } from "../../contexts/clinic";
 import KpiCards from "./components/KpiCards";
 import WeeklyChart from "./components/WeeklyChart";
 import OutcomeDonut from "./components/OutcomeDonut";
 import VisitsTable from "../../components/VisitsTable";
 import { rise, press } from "../../utils/motion";
-import { unit } from "./data";
 
 const MotionLink = motion.create(Link);
 
@@ -28,8 +28,12 @@ function formatSync(iso) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { stats, syncRnds, syncing, lastSync, rndsPending } = useClinic();
+  const { stats, syncRnds, syncing, lastSync, rndsPending, unit, historicAverage, status, loadError, reload } = useClinic();
   const [justSynced, setJustSynced] = useState(false);
+  // gráficos e tabela montam um quadro depois dos KPIs: a troca de página
+  // fica leve e a parte de cima aparece de imediato
+  const showCharts = useDeferredMount(2);
+  const showTable = useDeferredMount(5);
 
   useEffect(() => {
     if (!justSynced) return;
@@ -108,14 +112,24 @@ export default function Dashboard() {
         </motion.div>
       </section>
 
-      <KpiCards stats={stats} />
+      {status === "error" && (
+        <div className="load-error" role="alert">
+          <TriangleAlert size={18} />
+          <span>{loadError}</span>
+          <button type="button" className="btn btn--ghost" onClick={reload}>Tentar de novo</button>
+        </div>
+      )}
 
-      <div className="charts-row">
-        <WeeklyChart week={stats.week} todayIndex={stats.todayIndex} />
-        <OutcomeDonut outcomes={stats.outcomes} />
-      </div>
+      <KpiCards stats={stats} loading={status === "loading"} />
 
-      <VisitsTable limit={5} showViewAll />
+      {showCharts && (
+        <div className="charts-row">
+          <WeeklyChart week={stats.week} todayIndex={stats.todayIndex} historicAverage={historicAverage} />
+          <OutcomeDonut outcomes={stats.outcomes} />
+        </div>
+      )}
+
+      {showTable && <VisitsTable limit={5} showViewAll />}
     </main>
   );
 }

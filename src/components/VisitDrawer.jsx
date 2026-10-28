@@ -1,30 +1,36 @@
-import { useEffect } from "react";
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Clock, UserRound, Database, TriangleAlert } from "lucide-react";
 import { useClinic } from "../contexts/clinic";
-import { STATUS } from "../pages/Dashboard/data";
+import { STATUS } from "../data/catalog";
 import { initials } from "../utils/initials";
+import { useFocusTrap, useModalBackdrop } from "../hooks/useFocusTrap";
 
 export default function VisitDrawer() {
   const { visits, selectedId, closeVisit, updateVisit, notify } = useClinic();
   const visit = visits.find((v) => v.id === selectedId);
+  const panelRef = useRef(null);
+  useFocusTrap(panelRef, !!visit, { onClose: closeVisit, initialFocus: ".drawer-head h2" });
+  useModalBackdrop(!!visit, ".drawer, .drawer-scrim, .toasts");
 
-  useEffect(() => {
-    if (!visit) return;
-    const onKey = (e) => e.key === "Escape" && closeVisit();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [visit, closeVisit]);
-
-  function setStatus(status) {
+  async function setStatus(status) {
     if (status === visit.status) return;
-    updateVisit(visit.id, { status });
-    notify(`Desfecho de ${visit.name.split(" ")[0]}: ${STATUS[status].label}.`, "success");
+    try {
+      await updateVisit(visit.id, { status });
+      notify(`Desfecho de ${visit.name.split(" ")[0]}: ${STATUS[status].label}.`, "success");
+    } catch {
+      /* o provider já avisou e desfez */
+    }
   }
 
-  function toggleUrgent() {
-    updateVisit(visit.id, { urgent: !visit.urgent });
-    notify(visit.urgent ? "Red Flag removida." : "Red Flag ativada.", visit.urgent ? "info" : "warn");
+  async function toggleUrgent() {
+    const wasUrgent = !!visit.urgent;
+    try {
+      await updateVisit(visit.id, { urgent: !wasUrgent });
+      notify(wasUrgent ? "Red Flag removida." : "Red Flag ativada.", wasUrgent ? "info" : "warn");
+    } catch {
+      /* idem */
+    }
   }
 
   return (
@@ -39,10 +45,11 @@ export default function VisitDrawer() {
             exit={{ opacity: 0 }}
           />
           <motion.aside
+            ref={panelRef}
             className="drawer"
             role="dialog"
             aria-modal="true"
-            aria-label={`Atendimento de ${visit.name}`}
+            aria-label={`Atendimento de ${visit.name}${visit.urgent ? " (urgente)" : ""}`}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -53,7 +60,7 @@ export default function VisitDrawer() {
                 {initials(visit.name)}
               </span>
               <div>
-                <h2>{visit.name}</h2>
+                <h2 tabIndex={-1}>{visit.name}</h2>
                 <small className="mono">CPF {visit.cpf}</small>
               </div>
               <button className="icon-btn" onClick={closeVisit} aria-label="Fechar">

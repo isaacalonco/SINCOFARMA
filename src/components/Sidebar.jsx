@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -10,13 +11,35 @@ import {
   LogOut,
   X,
 } from "lucide-react";
-import logo from "../assets/logo-sincofarma.svg";
+import logo from "../assets/logo-sincofarma.webp";
 import { useClinic } from "../contexts/clinic";
 import { initials } from "../utils/initials";
 import { EASE, SPRING } from "../utils/motion";
+import { useFocusTrap } from "../hooks/useFocusTrap";
+import MotionToggle from "./MotionToggle";
+
+const MOBILE = "(max-width: 1024px)";
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.matchMedia?.(MOBILE).matches ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia?.(MOBILE);
+    if (!mq) return undefined;
+    const onChange = (e) => setMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return mobile;
+}
 
 export default function Sidebar({ open, onClose, user, onSignOut }) {
   const { stats } = useClinic();
+  const mobile = useIsMobile();
+  const asideRef = useRef(null);
+  // no mobile a gaveta aberta vira um diálogo: foco preso, Esc fecha, foco volta ao botão
+  useFocusTrap(asideRef, mobile && open, { onClose, initialFocus: ".sb-close" });
+  // fechada no mobile, sai do tab order e dos leitores de tela
+  const inert = mobile && !open;
 
   const sections = [
     {
@@ -51,7 +74,15 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
   return (
     <>
       <div className={`sb-scrim${open ? " is-open" : ""}`} onClick={onClose} aria-hidden="true" />
-      <aside className={`sidebar${open ? " is-open" : ""}`} aria-label="Menu principal">
+      <aside
+        ref={asideRef}
+        id="app-sidebar"
+        className={`sidebar${open ? " is-open" : ""}`}
+        aria-label="Menu principal"
+        role={mobile ? "dialog" : undefined}
+        aria-modal={mobile && open ? "true" : undefined}
+        inert={inert || undefined}
+      >
         <motion.div
           className="sb-brand"
           initial={{ opacity: 0, y: -10 }}
@@ -136,6 +167,7 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
             <strong>{user?.name ?? "Farmacêutico RT"}</strong>
             <small>{user?.crf ?? "CRF-DF · RT"}</small>
           </div>
+          <MotionToggle className="sb-motion" />
           <motion.button
             className="sb-logout"
             onClick={onSignOut}

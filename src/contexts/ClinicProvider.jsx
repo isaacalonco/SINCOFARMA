@@ -1,163 +1,209 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClinicContext } from "./clinic";
-import { base, seedVisits, weekBase, rndsQueue } from "../pages/Dashboard/data";
+import { repository } from "../data";
+import { computeStats } from "../data/stats";
+import { useOnline } from "../hooks/useOnline";
 
-const STORAGE_KEY = "sinco:clinic";
+const EMPTY = {
+  visits: [],
+  lastSync: null,
+  rndsPending: 0,
+  baseline: { outcomes: { done: 0, referred: 0, progress: 0 }, referralsToday: 0, triageMinutes: 0, triageGoal: "", monthGoal: 0, seedCounts: { done: 0, referred: 0, progress: 0 }, seedCount: 0 },
+  week: [0, 0, 0, 0, 0, 0, 0],
+  historicAverage: 0,
+  unit: "",
+};
 
-function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.visits)) return saved;
-  } catch {
-    /* ignora dados corrompidos */
-  }
-  return { visits: seedVisits, rndsIndex: 0, lastSync: null };
-}
+const friendly = (err, fallback) => (err?.message && err.message !== "Failed to fetch" ? err.message : fallback);
 
-function countBy(list) {
-  const out = { done: 0, referred: 0, progress: 0 };
-  list.forEach((v) => {
-    out[v.status] += 1;
-  });
-  return out;
-}
-
-const SEED_COUNTS = countBy(seedVisits);
-
-function nowTime() {
-  return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
+/**
+ * Estado clínico do app. Toda leitura/escrita passa pelo `repository`
+ * (mock ou API). Mantém: dados do painel, status de carga/erro, busca,
+ * avisos e o painel de detalhes.
+ */
 export function ClinicProvider({ children }) {
-  const [state, setState] = useState(load);
+  const [data, setData] = useState(EMPTY);
+  const [status, setStatus] = useState("loading"); // loading | ready | error
+  const [loadError, setLoadError] = useState(null);
   const [query, setQuery] = useState("");
   const [toasts, setToasts] = useState([]);
-  const [triageOpen, setTriageOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const online = useOnline();
   const toastId = useRef(0);
+  const timers = useRef(new Set());
+  const alive = useRef(true);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
-
-  const notify = useCallback((message, tone = "info") => {
-    toastId.current += 1;
-    const id = toastId.current;
-    setToasts((t) => [...t, { id, message, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3800);
+    alive.current = true;
+    const pending = timers.current;
+    return () => {
+      alive.current = false;
+      pending.forEach(clearTimeout);
+    };
   }, []);
 
-  const dismissToast = useCallback((id) => {
-    setToasts((t) => t.filter((x) => x.id !== id));
+  const later = useCallback((fn, ms) => {
+    const id = setTimeout(() => {
+      timers.current.delete(id);
+      if (alive.current) fn();
+    }, ms);
+    timers.current.add(id);
   }, []);
 
+  const notify = useCallback(
+    (message, tone = "info") => {
+      toastId.current += 1;
+      const id = toastId.current;
+      setToasts((t) => [...t, { id, message, tone }]);
+      later(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 6000 : 3800);
+    },
+    [later]
+  );
+  const dismissToast = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
+
+  /* ---------- carga inicial / recarga ---------- */
+  const fetchDashboard = useCallback(() => {
+    // estados só mudam quando a promessa resolve (nada síncrono dentro do efeito)
+    return repository.loadDashboard().then(
+      (result) => {
+        if (!alive.current) return;
+        setData({ ...EMPTY, ...result });
+        setStatus("ready");
+      },
+      (err) => {
+        if (!alive.current) return;
+        setLoadError(friendly(err, "Não foi possível carregar o painel."));
+        setStatus("error");
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const load = useCallback(() => {
+    setStatus("loading");
+    setLoadError(null);
+    return fetchDashboard();
+  }, [fetchDashboard]);
+
+  /* ---------- operações ---------- */
   const addVisit = useCallback(
-    (data) => {
-      const visit = {
-        ...data,
-        id: `v${Date.now()}`,
-        time: nowTime(),
-        isNew: true,
-      };
-      setState((s) => ({ ...s, visits: [visit, ...s.visits] }));
-      notify(`Triagem de ${data.name.split(" ")[0]} registrada.`, "success");
-      return visit;
+    async (payload) => {
+      if (!online) {
+        notify("Sem conexão: o atendimento não foi registrado.", "error");
+        throw new Error("offline");
+      }
+      try {
+        const visit = await repository.createVisit(payload);
+        setData((d) => ({ ...d, visits: [visit, ...d.visits] }));
+        notify(`Triagem de ${payload.name.split(" ")[0]} registrada.`, "success");
+        return visit;
+      } catch (err) {
+        notify(friendly(err, "Falha ao registrar a triagem."), "error");
+        throw err;
+      }
+    },
+    [notify, online]
+  );
+
+  const updateVisit = useCallback(
+    async (id, patch) => {
+      // otimista: aplica já e desfaz se o servidor recusar
+      let previous;
+      setData((d) => {
+        previous = d.visits.find((v) => v.id === id);
+        return { ...d, visits: d.visits.map((v) => (v.id === id ? { ...v, ...patch } : v)) };
+      });
+      try {
+        const updated = await repository.updateVisit(id, patch);
+        setData((d) => ({ ...d, visits: d.visits.map((v) => (v.id === id ? { ...v, ...updated } : v)) }));
+        return updated;
+      } catch (err) {
+        if (previous) setData((d) => ({ ...d, visits: d.visits.map((v) => (v.id === id ? previous : v)) }));
+        notify(friendly(err, "Não foi possível salvar a alteração."), "error");
+        throw err;
+      }
     },
     [notify]
   );
 
-  const updateVisit = useCallback((id, patch) => {
-    setState((s) => ({
-      ...s,
-      visits: s.visits.map((v) => (v.id === id ? { ...v, ...patch } : v)),
-    }));
-  }, []);
-
-  const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  const syncRnds = useCallback(() => {
-    if (syncing) return Promise.resolve();
+  const syncRnds = useCallback(async () => {
+    if (syncing) return;
+    if (!online) {
+      notify("Sem conexão com a RNDS.", "error");
+      return;
+    }
     setSyncing(true);
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const s = stateRef.current;
-        const next = rndsQueue[s.rndsIndex];
-        const lastSync = new Date().toISOString();
-        if (next) {
-          const visit = { ...next, id: `r${Date.now()}`, time: nowTime(), isNew: true, source: "RNDS" };
-          setState({ ...s, visits: [visit, ...s.visits], rndsIndex: s.rndsIndex + 1, lastSync });
-          notify(`RNDS sincronizada: ${next.name.split(" ")[0]} importado(a).`, "success");
-        } else {
-          setState({ ...s, lastSync });
-          notify("RNDS sincronizada: nenhum registro novo.", "info");
-        }
-        setSyncing(false);
-        resolve();
-      }, 1400);
-    });
-  }, [syncing, notify]);
+    try {
+      const { imported, lastSync, rndsPending } = await repository.syncRnds();
+      if (!alive.current) return;
+      setData((d) => ({
+        ...d,
+        visits: imported ? [imported, ...d.visits] : d.visits,
+        lastSync,
+        rndsPending,
+      }));
+      notify(
+        imported ? `RNDS sincronizada: ${imported.name.split(" ")[0]} importado(a).` : "RNDS sincronizada: nenhum registro novo.",
+        imported ? "success" : "info"
+      );
+    } catch (err) {
+      notify(friendly(err, "Falha na sincronização com a RNDS."), "error");
+    } finally {
+      if (alive.current) setSyncing(false);
+    }
+  }, [syncing, online, notify]);
 
-  const resetDemo = useCallback(() => {
-    setState({ visits: seedVisits, rndsIndex: 0, lastSync: null });
-    notify("Dados de demonstração restaurados.");
+  const resetDemo = useCallback(async () => {
+    try {
+      const result = await repository.reset();
+      setData({ ...EMPTY, ...result });
+      notify("Dados de demonstração restaurados.");
+    } catch (err) {
+      notify(friendly(err, "Não foi possível restaurar."), "error");
+    }
   }, [notify]);
 
-  const stats = useMemo(() => {
-    const { visits } = state;
-    const counts = countBy(visits);
-    const outcomes = {
-      done: base.outcomes.done + counts.done - SEED_COUNTS.done,
-      referred: base.outcomes.referred + counts.referred - SEED_COUNTS.referred,
-      progress: base.outcomes.progress + counts.progress - SEED_COUNTS.progress,
-    };
-    const total = outcomes.done + outcomes.referred + outcomes.progress;
-    const added = visits.length - seedVisits.length;
+  /* ---------- derivados ---------- */
+  const stats = useMemo(
+    () => computeStats(data.visits, { baseline: data.baseline, week: data.week }),
+    [data.visits, data.baseline, data.week]
+  );
 
-    const todayIndex = (new Date().getDay() + 6) % 7;
-    const week = weekBase.map((v, i) => (i === todayIndex ? v + added : v));
+  const openVisit = useCallback((id) => setSelectedId(id), []);
+  const closeVisit = useCallback(() => setSelectedId(null), []);
 
-    return {
-      total,
-      outcomes,
-      waiting: counts.progress,
-      resolutionPercent: total ? Math.round((outcomes.done / total) * 100) : 0,
-      referralsToday: base.referralsToday + counts.referred - SEED_COUNTS.referred,
-      urgentToday: visits.filter((v) => v.urgent).length,
-      triageMinutes: base.triageMinutes,
-      triageGoal: base.triageGoal,
-      goalProgress: Math.min(total / base.monthGoal, 1),
-      monthGoal: base.monthGoal,
-      todayIndex,
-      week,
-    };
-  }, [state]);
-
-  const value = {
-    visits: state.visits,
-    lastSync: state.lastSync,
-    rndsPending: rndsQueue.length - state.rndsIndex,
-    stats,
-    query,
-    setQuery,
-    toasts,
-    notify,
-    dismissToast,
-    addVisit,
-    updateVisit,
-    syncRnds,
-    syncing,
-    resetDemo,
-    triageOpen,
-    openTriage: () => setTriageOpen(true),
-    closeTriage: () => setTriageOpen(false),
-    selectedId,
-    openVisit: setSelectedId,
-    closeVisit: () => setSelectedId(null),
-  };
+  const value = useMemo(
+    () => ({
+      status,
+      loadError,
+      reload: load,
+      online,
+      visits: data.visits,
+      lastSync: data.lastSync,
+      rndsPending: data.rndsPending,
+      unit: data.unit,
+      historicAverage: data.historicAverage,
+      stats,
+      query,
+      setQuery,
+      toasts,
+      notify,
+      dismissToast,
+      addVisit,
+      updateVisit,
+      syncRnds,
+      syncing,
+      resetDemo,
+      selectedId,
+      openVisit,
+      closeVisit,
+    }),
+    [status, loadError, load, online, data, stats, query, toasts, notify, dismissToast, addVisit, updateVisit, syncRnds, syncing, resetDemo, selectedId, openVisit, closeVisit]
+  );
 
   return <ClinicContext.Provider value={value}>{children}</ClinicContext.Provider>;
 }

@@ -3,7 +3,6 @@
 export const EASE = [0.22, 1, 0.36, 1];
 
 export const SPRING = { type: "spring", stiffness: 400, damping: 25 };
-export const SPRING_SOFT = { type: "spring", stiffness: 260, damping: 22 };
 export const SPRING_TILT = { stiffness: 150, damping: 18, mass: 0.4 };
 
 /** Entrada escalonada: sobe e aparece. `base` é o atraso inicial. */

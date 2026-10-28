@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ListFilter,
   ChevronDown,
   ArrowRight,
-  Check,
   TriangleAlert,
   FileText,
   SquareArrowOutUpRight,
@@ -13,7 +12,7 @@ import {
   SearchX,
   X,
 } from "lucide-react";
-import { STATUS } from "../pages/Dashboard/data";
+import { STATUS } from "../data/catalog";
 import { useClinic, matchesQuery } from "../contexts/clinic";
 import SpotlightCard from "./SpotlightCard";
 import { initials } from "../utils/initials";
@@ -41,28 +40,11 @@ export default function VisitsTable({
 }) {
   const { visits, query, setQuery, openVisit } = useClinic();
   const [filter, setFilter] = useState(lockedFilter ?? "all");
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (!menuRef.current?.contains(e.target)) setOpen(false);
-    };
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   const filtered = visits
     .filter((v) => filter === "all" || v.status === filter)
     .filter((v) => matchesQuery(v, query));
   const visible = limit && !query ? filtered.slice(0, limit) : filtered;
-  const currentLabel = FILTERS.find((f) => f.key === filter).label;
 
   return (
     <SpotlightCard index={delay} className="table-card">
@@ -73,36 +55,18 @@ export default function VisitsTable({
         </div>
         <div className="table-tools">
           {!lockedFilter && (
-            <div className="dropdown" ref={menuRef}>
-              <button
-                className={`btn-filter${open ? " is-open" : ""}${filter !== "all" ? " is-filtered" : ""}`}
-                onClick={() => setOpen((v) => !v)}
-                aria-haspopup="listbox"
-                aria-expanded={open}
-              >
-                <ListFilter size={14} />
-                <span>{currentLabel}</span>
-                <ChevronDown size={14} className="chev" />
-              </button>
-              <ul className={`dropdown-menu${open ? " is-open" : ""}`} role="listbox">
+            <label className={`btn-filter${filter !== "all" ? " is-filtered" : ""}`}>
+              <ListFilter size={14} aria-hidden="true" />
+              <span className="sr-only">Filtrar por desfecho</span>
+              <select value={filter} onChange={(e) => setFilter(e.target.value)}>
                 {FILTERS.map((f) => (
-                  <li key={f.key}>
-                    <button
-                      role="option"
-                      aria-selected={filter === f.key}
-                      className={filter === f.key ? "is-selected" : ""}
-                      onClick={() => {
-                        setFilter(f.key);
-                        setOpen(false);
-                      }}
-                    >
-                      {f.label}
-                      {filter === f.key && <Check size={14} />}
-                    </button>
-                  </li>
+                  <option key={f.key} value={f.key}>
+                    {f.label}
+                  </option>
                 ))}
-              </ul>
-            </div>
+              </select>
+              <ChevronDown size={14} className="chev" aria-hidden="true" />
+            </label>
           )}
           {showViewAll && (
             <Link to="/atendimentos" className="link-arrow">
@@ -146,7 +110,7 @@ export default function VisitsTable({
             </tr>
           </thead>
           <tbody>
-            <AnimatePresence initial={false} mode="popLayout">
+            <AnimatePresence initial={false}>
               {visible.map((r) => {
                 const status = STATUS[r.status];
                 const action = ACTIONS[r.status];
@@ -155,15 +119,21 @@ export default function VisitsTable({
                 return (
                   <motion.tr
                     key={r.id}
-                    layout
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: 16 }}
+                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
                     transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                     className={`visit-row${r.urgent ? " is-urgent" : ""}`}
                     onClick={() => openVisit(r.id)}
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && openVisit(r.id)}
+                    role="button"
+                    aria-label={`Abrir atendimento de ${r.name}${r.urgent ? ", urgente" : ""}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openVisit(r.id);
+                      }
+                    }}
                   >
                     <td>
                       <div className="patient">
@@ -172,7 +142,10 @@ export default function VisitsTable({
                           <strong>
                             {r.name}
                             {r.urgent && (
-                              <TriangleAlert size={14} className="urgent-icon" aria-label="Urgente" />
+                              <>
+                                <TriangleAlert size={14} className="urgent-icon" aria-hidden="true" />
+                                <span className="sr-only">Urgente</span>
+                              </>
                             )}
                             {r.source === "RNDS" && <span className="tag-rnds">RNDS</span>}
                           </strong>

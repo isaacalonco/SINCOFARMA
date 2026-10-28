@@ -20,3 +20,32 @@ body {
 }
 
 button, input { font-family: inherit; }
+/* utilitário: visível só para leitores de tela */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* foco visível consistente em todo o app */
+:focus-visible { outline: 2px solid #1a6fb5; outline-offset: 2px; }
+
+/* movimento reduzido: pela preferência do sistema (modo automático)
+   ou pelo interruptor do usuário. Mantém transições de 1 quadro. */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+:root[data-motion="reduce"] .beams,
+:root[data-motion="reduce"] .login-bg .glow,
+:root[data-motion="reduce"] .dash-glow { display: none !important; }

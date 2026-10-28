@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Info } from "lucide-react";
 import SpotlightCard from "../../../components/SpotlightCard";
-import { WEEK_LABELS, WEEK_NAMES, historicAverage } from "../data";
+import { WEEK_LABELS, WEEK_NAMES } from "../../../data/catalog";
 
 const STEP = 7;
 
-export default function WeeklyChart({ week, todayIndex }) {
+export default function WeeklyChart({ week, todayIndex, historicAverage = 17 }) {
   const [hover, setHover] = useState(null);
 
   const max = Math.max(28, Math.ceil(Math.max(...week) / STEP) * STEP);
   const ticks = Array.from({ length: max / STEP + 1 }, (_, i) => max - i * STEP);
-  const total = week.reduce((s, v) => s + v, 0);
-  const peakIndex = week.indexOf(Math.max(...week));
+  // só dias já ocorridos contam como registro; os demais são previsão
+  const recorded = week.slice(0, todayIndex + 1);
+  const total = recorded.reduce((s, v) => s + v, 0);
+  const peakIndex = recorded.indexOf(Math.max(...recorded));
 
   return (
     <SpotlightCard index={4} className="chart-card">
@@ -30,11 +31,7 @@ export default function WeeklyChart({ week, todayIndex }) {
         </ul>
       </header>
 
-      <div
-        className="bars"
-        role="img"
-        aria-label={`Triagens por dia: ${week.map((v, i) => `${WEEK_LABELS[i]} ${v}`).join(", ")}`}
-      >
+      <div className="bars" role="group" aria-label="Triagens por dia da semana">
         <div className="bars-grid">
           {ticks.map((t) => (
             <div key={t} className="bars-tick" style={{ "--y": t / max }}>
@@ -60,14 +57,15 @@ export default function WeeklyChart({ week, todayIndex }) {
                 }`}
                 onMouseEnter={() => setHover(idx)}
                 onMouseLeave={() => setHover(null)}
+                onFocus={() => setHover(idx)}
+                onBlur={() => setHover(null)}
+                tabIndex={0}
+                aria-label={`${WEEK_NAMES[idx]}: ${value} ${isFuture ? "previstas" : "triagens"}, ${diff >= 0 ? "+" : ""}${diff} em relação à média`}
               >
                 <div className="bar-track">
-                  <motion.div
+                  <div
                     className={`bar bar--${tone}`}
-                    style={{ "--h": value / max }}
-                    initial={{ scaleY: 0 }}
-                    animate={{ scaleY: 1 }}
-                    transition={{ type: "spring", stiffness: 120, damping: 16, delay: 0.55 + idx * 0.07 }}
+                    style={{ "--h": value / max, "--d": `${550 + idx * 70}ms` }}
                   >
                     {(isToday || idx === peakIndex) && (
                       <span className={`bar-peak${isToday ? "" : " bar-peak--muted"}`}>{value}</span>
@@ -78,7 +76,7 @@ export default function WeeklyChart({ week, todayIndex }) {
                         {WEEK_NAMES[idx]} · {diff >= 0 ? `+${diff}` : diff} vs média
                       </small>
                     </span>
-                  </motion.div>
+                  </div>
                 </div>
                 <span className={`bar-label${isToday ? " is-today" : ""}`}>
                   {isToday ? `${WEEK_LABELS[idx]} · Hoje` : WEEK_LABELS[idx]}
@@ -93,7 +91,7 @@ export default function WeeklyChart({ week, todayIndex }) {
         <span>
           <Info size={14} /> Sincronização contínua com banco de dados regional (SES-DF).
         </span>
-        <b>Total: {total} triagens registradas</b>
+        <b>Total: {total} triagens registradas até hoje</b>
       </footer>
     </SpotlightCard>
   );

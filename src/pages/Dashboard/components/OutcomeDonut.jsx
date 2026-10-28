@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import SpotlightCard from "../../../components/SpotlightCard";
 import { EASE } from "../../../utils/motion";
-import { OUTCOME_META, period } from "../data";
-import { useCountUp } from "./useCountUp";
+import { OUTCOME_META } from "../../../data/catalog";
+import { monthLabel } from "../../../utils/dates";
+import CountUp from "../../../components/CountUp";
 
 const R = 62;
 const C = 2 * Math.PI * R;
@@ -36,7 +37,6 @@ export default function OutcomeDonut({ outcomes }) {
   const [active, setActive] = useState(null);
   const segments = buildSegments(outcomes);
   const current = segments.find((s) => s.key === active) ?? segments[0];
-  const centerValue = useCountUp(current.percent, { delay: 300, duration: 900 });
 
   return (
     <SpotlightCard index={5} className="donut-card">
@@ -45,7 +45,7 @@ export default function OutcomeDonut({ outcomes }) {
           <h2>Desfechos Clínicos</h2>
           <p>Eficiência de condutas farmacoterapêuticas</p>
         </div>
-        <span className="period-pill">{period}</span>
+        <span className="period-pill">{monthLabel()}</span>
       </header>
 
       <div className="donut-wrap">
@@ -83,7 +83,7 @@ export default function OutcomeDonut({ outcomes }) {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
         >
-          <strong>{centerValue}%</strong>
+          <strong><CountUp value={current.percent} delay={300} duration={900} suffix="%" /></strong>
           <span>{active ? current.label : "RESOLUÇÃO"}</span>
         </motion.div>
       </div>
@@ -98,9 +98,15 @@ export default function OutcomeDonut({ outcomes }) {
             className={active === s.key ? "is-active" : active ? "is-dim" : ""}
             onMouseEnter={() => setActive(s.key)}
             onMouseLeave={() => setActive(null)}
+            onFocus={() => setActive(s.key)}
+            onBlur={() => setActive(null)}
             style={{ "--c": s.color }}
           >
-            <Link to={s.key === "referred" ? "/encaminhamentos" : "/atendimentos"} className="legend-link">
+            <Link
+              to={s.key === "referred" ? "/encaminhamentos" : "/atendimentos"}
+              className="legend-link"
+              aria-label={`${s.label}: ${s.percent}%, ${s.count} atendimentos`}
+            >
               <i className="sq" />
               <span>{s.label}</span>
               <b>{s.percent}%</b>
