@@ -50,9 +50,16 @@ function write(state) {
   }
 }
 
-let state = read();
-// garante que o armazenamento reflita o formato atual (útil após migração de schema)
-write(state);
+// carregado sob demanda: importar este módulo não grava nada no navegador
+// (com a API ligada ele nem chega a ser usado)
+let loaded = null;
+function current() {
+  if (!loaded) {
+    loaded = read();
+    write(loaded); // normaliza o formato salvo (migração de schema)
+  }
+  return loaded;
+}
 
 export const mockRepository = {
   name: "mock",
@@ -60,9 +67,9 @@ export const mockRepository = {
   async loadDashboard() {
     await wait(LATENCY);
     return {
-      visits: state.visits,
-      lastSync: state.lastSync,
-      rndsPending: rndsQueue.length - state.rndsIndex,
+      visits: current().visits,
+      lastSync: current().lastSync,
+      rndsPending: rndsQueue.length - current().rndsIndex,
       baseline,
       week: weekBase,
       historicAverage,
@@ -77,46 +84,47 @@ export const mockRepository = {
     await wait(LATENCY);
     const now = new Date();
     const visit = { ...data, id: `v${now.getTime()}`, at: now.toISOString(), time: timeLabel(now), isNew: true };
-    state = { ...state, visits: [visit, ...state.visits] };
-    write(state);
+    loaded = { ...current(), visits: [visit, ...current().visits] };
+    write(loaded);
     return visit;
   },
 
   async updateVisit(id, patch) {
     await wait(LATENCY / 2);
-    const current = state.visits.find((v) => v.id === id);
-    if (!current) throw new Error("Atendimento não encontrado.");
-    const updated = { ...current, ...patch };
-    state = { ...state, visits: state.visits.map((v) => (v.id === id ? updated : v)) };
-    write(state);
+    const found = current().visits.find((v) => v.id === id);
+    if (!found) throw new Error("Atendimento não encontrado.");
+    const updated = { ...found, ...patch };
+    loaded = { ...current(), visits: current().visits.map((v) => (v.id === id ? updated : v)) };
+    write(loaded);
     return updated;
   },
 
   async syncRnds() {
     await wait(1400);
-    const next = rndsQueue[state.rndsIndex];
+    const st = current();
+    const next = rndsQueue[st.rndsIndex];
     const now = new Date();
     const lastSync = now.toISOString();
     let imported = null;
     if (next) {
       imported = { ...next, id: `r${now.getTime()}`, at: lastSync, time: timeLabel(now), isNew: true, source: "RNDS" };
-      state = { ...state, visits: [imported, ...state.visits], rndsIndex: state.rndsIndex + 1, lastSync };
+      loaded = { ...st, visits: [imported, ...st.visits], rndsIndex: st.rndsIndex + 1, lastSync };
     } else {
-      state = { ...state, lastSync };
+      loaded = { ...st, lastSync };
     }
-    write(state);
-    return { imported, lastSync, rndsPending: rndsQueue.length - state.rndsIndex };
+    write(loaded);
+    return { imported, lastSync, rndsPending: rndsQueue.length - loaded.rndsIndex };
   },
 
   async reset() {
-    state = fresh();
-    write(state);
+    loaded = fresh();
+    write(loaded);
     return this.loadDashboard();
   },
 
   /** Apaga o cache local (chamado no logout). */
   clear() {
-    state = fresh();
+    loaded = null;
     try {
       localStorage.removeItem(KEY);
     } catch {

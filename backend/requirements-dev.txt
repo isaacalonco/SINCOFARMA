@@ -1,0 +1,5 @@
+boto3
+moto[dynamodb,cognitoidp]>=5
+pytest>=8
+tzdata
+cfn-lint

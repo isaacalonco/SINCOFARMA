@@ -1,15 +1,47 @@
-// import { api } from "./api"; // usar quando o backend existir
+// Login do painel. Com Cognito configurado (VITE_COGNITO_REGION e
+// VITE_COGNITO_CLIENT_ID), autentica de verdade; sem ele, roda o modo
+// demonstração com a senha fixa abaixo (nunca em produção).
+import * as cognito from "./cognito";
+import * as session from "./session";
+
+export const AUTH_MODE = cognito.COGNITO_ENABLED ? "cognito" : "demo";
+export { AuthError } from "./cognito";
+
+const DEMO_PASSWORD = "12345678";
+const DEMO_USER_KEY = "user";
 
 export async function login(identifier, password) {
-  // enquanto não há backend
-  await new Promise((r) => setTimeout(r, 600));
-  if (password === "12345678") {
-    return {
-      token: "fake-token",
-      // perfil vindo do servidor no futuro (nome, CRF, se está em plantão)
-      user: { name: "Dra. Ana Souza", crf: "CRF-DF 4192 · RT", onDuty: true, identifier },
-    };
+  if (AUTH_MODE === "cognito") {
+    const tokens = await cognito.initiateAuth(identifier, password);
+    return session.start(tokens);
   }
-  throw new Error("Credenciais inválidas.");
-
+  await new Promise((r) => setTimeout(r, 600));
+  if (password !== DEMO_PASSWORD) throw new Error("Credenciais inválidas.");
+  const user = { name: "Dra. Ana Souza", crf: "CRF-DF 4192 · RT", onDuty: true };
+  localStorage.setItem(DEMO_USER_KEY, JSON.stringify(user));
+  localStorage.setItem("token", "demo");
+  return user;
 }
+
+/** Primeiro acesso no Cognito: define a senha definitiva e entra. */
+export async function completeNewPassword(challenge, newPassword) {
+  const tokens = await cognito.completeNewPassword(challenge, newPassword);
+  return session.start(tokens);
+}
+
+export function currentUser() {
+  if (AUTH_MODE === "cognito") return session.storedUser();
+  try {
+    const saved = JSON.parse(localStorage.getItem(DEMO_USER_KEY));
+    return saved && typeof saved === "object" && typeof saved.name === "string" ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+export function logout() {
+  if (AUTH_MODE === "cognito") session.end();
+  ["token", DEMO_USER_KEY].forEach((k) => localStorage.removeItem(k));
+}
+
+export const getAccessToken = () => (AUTH_MODE === "cognito" ? session.getAccessToken() : Promise.resolve(null));

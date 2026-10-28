@@ -41,6 +41,8 @@ export default function NovaTriagem() {
   const [saving, setSaving] = useState(false);
   const [announce, setAnnounce] = useState("");
   const [protocolo] = useState(newProtocol);
+  // início do atendimento, para o tempo médio de triagem do painel
+  const [startedAt] = useState(() => Date.now());
 
   const setField = useCallback((name, value) => setForm((f) => ({ ...f, [name]: value })), []);
 
@@ -89,7 +91,8 @@ export default function NovaTriagem() {
     setSaving(true);
     try {
       const { summary, clinical } = buildTriageRecord(form, { pharmacist, protocol: protocolo });
-      await addVisit(summary, clinical);
+      const durationSec = Math.round((Date.now() - startedAt) / 1000);
+      await addVisit({ ...summary, durationSec }, clinical);
       navigate("/dashboard");
     } catch {
       // o provider já avisou o usuário; o formulário fica preenchido para tentar de novo

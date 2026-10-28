@@ -460,3 +460,7 @@ label.is-focused { color: var(--blue-500); }
   line-height: 1.45;
   text-align: left;
 }
+
+.new-password { display: grid; }
+.new-password .login-idle { margin: 0 0 16px; }
+.label-gap { margin-top: 18px; }

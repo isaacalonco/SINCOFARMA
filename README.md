@@ -37,11 +37,16 @@ documentado no topo de `src/data/apiRepository.js`.
 Os indicadores do painel são calculados no cliente por `computeStats` (`src/data/stats.js`),
 uma função pura coberta por testes.
 
-## Login (temporário)
+## Login
 
-Enquanto não há backend de autenticação, `src/services/authService.js` aceita qualquer
-identificador com a senha `12345678`. **Isso precisa ser substituído antes de qualquer uso
-real**: o token é falso e a rota privada só verifica a existência do usuário no navegador.
+- **Sem `VITE_COGNITO_*`**: modo demonstração (qualquer identificador, senha `12345678`). Nunca em produção.
+- **Com `VITE_COGNITO_REGION` e `VITE_COGNITO_CLIENT_ID`**: login real no Amazon Cognito, com troca de senha
+  no primeiro acesso. Os tokens ficam em memória e o refresh token no `sessionStorage`.
+
+## Backend
+
+O backend (AWS SAM: Cognito, API Gateway, Lambda em Python e DynamoDB) fica em [`backend/`](backend/README.md),
+com instruções de teste, deploy e cadastro de usuários.
 
 ## Estrutura
 

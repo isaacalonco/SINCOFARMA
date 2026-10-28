@@ -32,8 +32,12 @@ export default function Login() {
   const [error, setError] = useState("");
   const [help, setHelp] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | loading | success
+  // primeiro acesso (Cognito): o gestor criou a conta com senha temporária
+  const [challenge, setChallenge] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const { signIn } = useAuth();
+  const { signIn, completeNewPassword } = useAuth();
   const navigate = useNavigate();
   // motivo de um encerramento automático (lido uma vez e apagado)
   const [idleLogout] = useState(() => {
@@ -64,13 +68,32 @@ export default function Login() {
     e.preventDefault();
     if (loading || success) return;
     setError("");
+    if (challenge) {
+      const policy = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{12,}$/;
+      if (!policy.test(newPassword)) {
+        setError("A nova senha precisa de 12 caracteres ou mais, com maiúscula, minúscula e número.");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setError("As senhas não conferem.");
+        return;
+      }
+    }
     setStatus("loading");
     try {
-      await signIn(identifier, password);
+      if (challenge) await completeNewPassword(challenge, newPassword);
+      else await signIn(identifier, password);
       setStatus("success");
       navTimer.current = setTimeout(() => navigate("/dashboard"), 800);
     } catch (err) {
       setStatus("idle");
+      if (err.code === "Challenge" && err.challenge === "NEW_PASSWORD_REQUIRED") {
+        setChallenge({ username: err.username, session: err.session });
+        setPassword("");
+        setError("");
+        return;
+      }
+      if (challenge && /expirada/.test(err.message || "")) setChallenge(null);
       setError(err.message || "Não foi possível acessar.");
       animateCard(
         cardScope.current,
@@ -194,6 +217,44 @@ export default function Login() {
               )}
 
               <form onSubmit={handleSubmit} noValidate>
+                {challenge ? (
+                  <motion.div
+                    className="new-password"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: EASE }}
+                  >
+                    <p className="login-idle" role="status">
+                      Primeiro acesso: defina sua senha pessoal. Mínimo de 12 caracteres, com
+                      maiúscula, minúscula e número.
+                    </p>
+                    <label htmlFor="new-password">Nova senha</label>
+                    <div className={`input-wrap${newPassword ? " has-value" : ""}`}>
+                      <Lock size={18} className="input-icon" />
+                      <input
+                        id="new-password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <label htmlFor="confirm-password" className="label-gap">Confirme a nova senha</label>
+                    <div className={`input-wrap${confirmPassword ? " has-value" : ""}`}>
+                      <Lock size={18} className="input-icon" />
+                      <input
+                        id="confirm-password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </motion.div>
+                ) : (
+                  <>
                 <motion.div {...rise(3)}>
                   <label htmlFor="identifier" className={focused === "identifier" ? "is-focused" : ""}>
                     Número do CRF-DF ou CPF
@@ -287,6 +348,9 @@ export default function Login() {
                   </motion.div>
                 </motion.div>
 
+                  </>
+                )}
+
                 <AnimatePresence initial={false}>
                   {help && (
                     <motion.p
@@ -371,7 +435,7 @@ export default function Login() {
                           exit={{ opacity: 0, y: -8 }}
                           transition={{ duration: 0.2 }}
                         >
-                          Acessar Plataforma
+                          {challenge ? "Salvar senha e entrar" : "Acessar Plataforma"}
                           <ArrowRight size={16} className="btn-arrow" />
                         </motion.span>
                       )}

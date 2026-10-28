@@ -1,3 +1,5 @@
+import { getAccessToken } from "./authService";
+
 const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 const DEFAULT_TIMEOUT = 15000;
 
@@ -23,7 +25,12 @@ export const UNAUTHORIZED_EVENT = "sinco:unauthorized";
 export async function api(path, { headers = {}, timeout = DEFAULT_TIMEOUT, ...options } = {}) {
   if (!API_URL) throw new ApiError("VITE_API_URL não configurada.", { status: 0 });
 
-  const token = localStorage.getItem("token");
+  // token de acesso do Cognito (em memória; renovado automaticamente)
+  const token = await getAccessToken();
+  if (!token) {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    throw new ApiError("Sessão expirada. Entre novamente.", { status: 401 });
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 

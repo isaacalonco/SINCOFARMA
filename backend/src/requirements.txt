@@ -1,0 +1,3 @@
+# boto3 já vem no runtime da Lambda.
+# tzdata garante o fuso America/Sao_Paulo mesmo sem a base de fusos do sistema.
+tzdata==2025.2

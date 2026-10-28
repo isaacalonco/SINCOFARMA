@@ -116,7 +116,10 @@ export default function KpiCards({ stats, loading = false }) {
           <span>TEMPO MÉDIO TRIAGEM</span>
         </header>
         <div className="kpi-value-row">
-          <strong className="kpi-value kpi-value--stack"><CountUp value={stats.triageMinutes} delay={540} /><br />min</strong>
+          <strong className="kpi-value kpi-value--stack">
+            {stats.triageMinutes > 0 ? <CountUp value={stats.triageMinutes} delay={540} /> : <span title="Ainda sem triagens medidas neste mês">–</span>}
+            <br />min
+          </strong>
           <span className="kpi-caption">protocolo<br />Manchester</span>
         </div>
         <div className="kpi-foot">

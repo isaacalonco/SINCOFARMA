@@ -6,6 +6,13 @@ const PKG = /node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // o backend (Python, com .venv de milhares de arquivos) não faz parte do front
+  server: {
+    watch: { ignored: ['**/backend/**'] },
+  },
+  optimizeDeps: {
+    entries: ['index.html'],
+  },
   build: {
     // separa bibliotecas estáveis em chunks próprios: o navegador
     // mantém o cache delas entre deploys que só mudam o código do app

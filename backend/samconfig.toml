@@ -1,0 +1,23 @@
+version = 0.1
+
+[default.global.parameters]
+region = "sa-east-1"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+stack_name = "sincofarma-painel-dev"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+parameter_overrides = "Stage=dev AllowedOrigins=http://localhost:5173"
+
+[prod.deploy.parameters]
+stack_name = "sincofarma-painel-prod"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+region = "sa-east-1"
+parameter_overrides = "Stage=prod"

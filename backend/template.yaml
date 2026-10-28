@@ -1,0 +1,361 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Sincofarma DF - backend do painel clinico. Cognito (login), HTTP API com
+  autorizador JWT, Lambdas Python e DynamoDB criptografado com chave propria.
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues: [dev, prod]
+    Default: dev
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Description: Origens do front autorizadas no CORS (ex. https://painel.vercel.app,http://localhost:5173)
+    Default: http://localhost:5173
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: E-mail para alertas de erro (opcional)
+  LogRetentionDays:
+    Type: Number
+    Default: 90
+
+Conditions:
+  IsProd: !Equals [!Ref Stage, prod]
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    CodeUri: src/
+    MemorySize: 256
+    Timeout: 10
+    LoggingConfig:
+      LogFormat: JSON
+    Environment:
+      Variables:
+        TABELA_PAINEL: !Ref TabelaPainel
+        TABELA_CLINICO: !Ref TabelaClinico
+        USER_POOL_ID: !Ref UserPool
+        TZ_UNIDADE: America/Sao_Paulo
+
+Resources:
+  # ---------------------------------------------------------------- criptografia
+  ChaveDados:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "Sincofarma painel ${Stage} - dados clinicos"
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AdministracaoPelaConta
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+
+  ChaveDadosAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/sincofarma-painel-${Stage}"
+      TargetKeyId: !Ref ChaveDados
+
+  # ---------------------------------------------------------------- dados
+  TabelaPainel:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "sincofarma-painel-${Stage}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref ChaveDados
+      DeletionProtectionEnabled: !If [IsProd, true, false]
+
+  TabelaClinico:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "sincofarma-clinico-${Stage}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref ChaveDados
+      DeletionProtectionEnabled: !If [IsProd, true, false]
+
+  # ---------------------------------------------------------------- login
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub "sincofarma-painel-${Stage}"
+      # sem autocadastro: o administrador cria cada farmacêutico
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      # login pelo CPF (username) ou pelo CRF (alias preferred_username = crf<numero>)
+      AliasAttributes: [preferred_username]
+      UsernameConfiguration:
+        CaseSensitive: false
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 3
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - { Name: verified_email, Priority: 1 }
+      AutoVerifiedAttributes: [email]
+      MfaConfiguration: "OFF"
+      Schema:
+        - { Name: name, AttributeDataType: String, Mutable: true, Required: true }
+        - { Name: email, AttributeDataType: String, Mutable: true, Required: true }
+        - Name: crf
+          AttributeDataType: String
+          Mutable: true
+          StringAttributeConstraints: { MinLength: "1", MaxLength: "20" }
+      DeletionProtection: !If [IsProd, ACTIVE, INACTIVE]
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "painel-web-${Stage}"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false # cliente público (SPA): sem segredo
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AccessTokenValidity: 15
+      IdTokenValidity: 15
+      RefreshTokenValidity: 12 # um plantão; depois disso, novo login
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: hours
+      ReadAttributes: [name, email, preferred_username, "custom:crf"]
+      WriteAttributes: [email]
+
+  # ---------------------------------------------------------------- API
+  ApiLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/sincofarma-painel-${Stage}"
+      RetentionInDays: !Ref LogRetentionDays
+
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        DefaultAuthorizer: CognitoJwt
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience:
+                - !Ref UserPoolClient
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowHeaders: [authorization, content-type]
+        AllowMethods: [GET, POST, PATCH, OPTIONS]
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 40
+        ThrottlingRateLimit: 20
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiLogs.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","rota":"$context.routeKey","status":"$context.status","latenciaMs":"$context.responseLatency","usuario":"$context.authorizer.claims.sub","erroAuth":"$context.authorizer.error"}'
+
+  # ---------------------------------------------------------------- funções
+  DashboardFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-dashboard"
+      Handler: painel.api.dashboard
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref TabelaPainel }
+        - Statement:
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Get:
+          Type: HttpApi
+          Properties: { ApiId: !Ref Api, Method: GET, Path: /dashboard }
+
+  CriarVisitaFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-criar-visita"
+      Handler: painel.api.criar_visita
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TabelaPainel }
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:PutItem, dynamodb:ConditionCheckItem]
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+            - Effect: Allow
+              Action: cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Post:
+          Type: HttpApi
+          Properties: { ApiId: !Ref Api, Method: POST, Path: /visits }
+
+  AtualizarVisitaFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-atualizar-visita"
+      Handler: painel.api.atualizar_visita
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TabelaPainel }
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:PutItem # só a trilha de auditoria
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Patch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: PATCH
+            Path: "/visits/{id}"
+
+  RndsFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-rnds"
+      Handler: painel.api.sincronizar_rnds
+      Events:
+        Post:
+          Type: HttpApi
+          Properties: { ApiId: !Ref Api, Method: POST, Path: /rnds/sync }
+
+  DashboardLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${DashboardFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  CriarVisitaLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CriarVisitaFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  AtualizarVisitaLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AtualizarVisitaFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  RndsLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${RndsFn}"
+      RetentionInDays: !Ref LogRetentionDays
+
+  # ---------------------------------------------------------------- alertas
+  TopicoAlertas:
+    Type: AWS::SNS::Topic
+    Condition: HasAlarmEmail
+    Properties:
+      KmsMasterKeyId: alias/aws/sns
+  AssinaturaAlertas:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref TopicoAlertas
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
+  AlarmeErros5xx:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlarmEmail
+    Properties:
+      AlarmDescription: API do painel devolvendo erros 5xx
+      Namespace: AWS/ApiGateway
+      MetricName: 5xx
+      Dimensions:
+        - { Name: ApiId, Value: !Ref Api }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref TopicoAlertas]
+
+  AlarmeErrosCriacao:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlarmEmail
+    Properties:
+      AlarmDescription: Falhas ao registrar triagens
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref CriarVisitaFn }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref TopicoAlertas]
+
+Outputs:
+  ApiUrl:
+    Description: VITE_API_URL do front
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com"
+  Region:
+    Description: VITE_COGNITO_REGION do front
+    Value: !Ref AWS::Region
+  UserPoolId:
+    Description: Usado pelo script de cadastro de usuários
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: VITE_COGNITO_CLIENT_ID do front
+    Value: !Ref UserPoolClient
+  TabelaPainel:
+    Value: !Ref TabelaPainel
