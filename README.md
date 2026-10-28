@@ -41,7 +41,54 @@ uma função pura coberta por testes.
 
 - **Sem `VITE_COGNITO_*`**: modo demonstração (qualquer identificador, senha `12345678`). Nunca em produção.
 - **Com `VITE_COGNITO_REGION` e `VITE_COGNITO_CLIENT_ID`**: login real no Amazon Cognito, com troca de senha
-  no primeiro acesso. Os tokens ficam em memória e o refresh token no `sessionStorage`.
+  no primeiro acesso e MFA obrigatório por app autenticador (QR code no primeiro login, código de 6 dígitos
+  nos seguintes). Os tokens ficam em memória e o refresh token no `sessionStorage`.
+
+## Desenvolvendo contra o backend local
+
+**Nunca teste contra a produção**: lá ficam dados clínicos reais. Para ver uma página com login, API e banco
+de verdade, rode o backend simulado na sua máquina (não precisa de conta AWS):
+
+1. Prepare o Python uma vez (Python 3.12; detalhes em [`backend/README.md`](backend/README.md)):
+
+   ```bash
+   cd backend
+   python -m venv .venv
+   .venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows (Linux/macOS: .venv/bin/python)
+   ```
+
+2. Suba o servidor local. Ele imprime um `CLIENT_ID`, que muda a cada vez que o servidor reinicia:
+
+   ```bash
+   .venv/Scripts/python scripts/servidor_local.py --porta 3001 --origem http://localhost:5173
+   ```
+
+3. Na raiz do projeto, crie um `.env.local` (fica fora do git) com o `CLIENT_ID` impresso e rode `npm run dev`:
+
+   ```
+   VITE_API_URL=http://localhost:3001
+   VITE_COGNITO_REGION=sa-east-1
+   VITE_COGNITO_CLIENT_ID=<CLIENT_ID impresso>
+   VITE_COGNITO_ENDPOINT=http://localhost:3001/
+   ```
+
+4. Entre com o CPF `52998224725` e a senha temporária `Temporaria#2026`. O painel pede uma senha nova e
+   depois mostra o QR code do MFA: no servidor local **qualquer código de 6 dígitos** é aceito.
+
+Os dados ficam só na memória do servidor e somem quando ele para. Reiniciou o servidor? Atualize o
+`CLIENT_ID` no `.env.local` e reinicie o `npm run dev`.
+
+Para olhar só o visual, sem login nem API, apague o `.env.local`: o app volta ao modo demonstração.
+
+## Fluxo de trabalho
+
+- A `main` publica direto no site real (Vercel). Trabalhe numa branch e abra um pull request.
+- Todo push e pull request roda o CI do GitHub ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+  lint, testes e build do front; testes e cfn-lint do backend. Só faça merge com tudo verde.
+- A Vercel gera um link de pré-visualização para cada pull request. As variáveis `VITE_*` ficam marcadas só
+  para **Production** na Vercel, então a pré-visualização roda em modo demonstração e nunca toca nos dados reais.
+- Antes de subir, rode localmente: `npm run lint`, `npm test` e `npm run build`.
+- Precisa de uma rota nova na API? Combine antes: a validação e as regras ficam no backend.
 
 ## Backend
 

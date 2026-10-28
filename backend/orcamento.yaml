@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Sincofarma DF - alerta de orcamento da conta AWS inteira. Avisa por e-mail quando o
+  gasto do mes passa do limite, para pegar cedo um recurso esquecido ligado.
+  O AWS Budgets so funciona em us-east-1: publique este stack nessa regiao.
+
+Parameters:
+  LimiteMensalUsd:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    Description: Limite mensal em dolares (o painel sozinho custa cerca de 1 a 2 USD)
+  Email:
+    Type: String
+    AllowedPattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    Description: E-mail que recebe os alertas
+
+Resources:
+  Orcamento:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: sincofarma-conta-mensal
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref LimiteMensalUsd
+          Unit: USD
+        # conta o uso bruto: com os créditos descontados o gasto fica em zero
+        # enquanto eles durarem e o alerta nunca dispararia
+        CostTypes:
+          IncludeCredit: false
+          IncludeRefund: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref Email }
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref Email }
+        # previsão do mês acima do limite: o aviso chega antes do gasto acontecer
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref Email }
+
+Outputs:
+  Orcamento:
+    Description: Nome do orçamento no console (Billing > Budgets)
+    Value: !Ref Orcamento
