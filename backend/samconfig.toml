@@ -20,4 +20,4 @@ resolve_s3 = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 region = "sa-east-1"
-parameter_overrides = "Stage=prod"
+parameter_overrides = "Stage=prod AllowedOrigins=https://sincofarma-kappa.vercel.app AlarmEmail=isaquizin123@gmail.com"

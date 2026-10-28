@@ -67,7 +67,7 @@ Resources:
   # ---------------------------------------------------------------- dados
   TabelaPainel:
     Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
+    DeletionPolicy: RetainExceptOnCreate
     UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub "sincofarma-painel-${Stage}"
@@ -88,7 +88,7 @@ Resources:
 
   TabelaClinico:
     Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
+    DeletionPolicy: RetainExceptOnCreate
     UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub "sincofarma-clinico-${Stage}"
@@ -110,7 +110,7 @@ Resources:
   # ---------------------------------------------------------------- login
   UserPool:
     Type: AWS::Cognito::UserPool
-    DeletionPolicy: Retain
+    DeletionPolicy: RetainExceptOnCreate
     UpdateReplacePolicy: Retain
     Properties:
       UserPoolName: !Sub "sincofarma-painel-${Stage}"
@@ -162,7 +162,8 @@ Resources:
         IdToken: minutes
         RefreshToken: hours
       ReadAttributes: [name, email, preferred_username, "custom:crf"]
-      WriteAttributes: [email]
+      # o Cognito exige que o cliente possa escrever todos os atributos obrigatórios do pool
+      WriteAttributes: [name, email]
 
   # ---------------------------------------------------------------- API
   ApiLogs:
