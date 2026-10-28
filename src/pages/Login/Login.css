@@ -448,3 +448,15 @@ label.is-focused { color: var(--blue-500); }
 }
 .notice--warn:hover { border-color: #fcd34d; }
 .hr-gap { margin-top: 0; }
+
+.login-idle {
+  margin: -6px 0 18px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eaf3fc;
+  border: 1px solid #c9ddf1;
+  color: #1e4f7d;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}

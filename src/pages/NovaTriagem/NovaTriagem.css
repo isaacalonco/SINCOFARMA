@@ -353,7 +353,7 @@
 }
 
 /* chips (mesmo tom das pílulas do app) */
-.tg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
 .tg-chips:empty { display: none; }
 .tg-chip {
   display: inline-flex;
@@ -640,14 +640,6 @@
   filter: brightness(1.05);
 }
 
-.tg-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
 
 /* ---------- responsivo ---------- */
 @media (max-width: 1180px) {

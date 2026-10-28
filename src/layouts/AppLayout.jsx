@@ -3,10 +3,13 @@ import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Menu, X, WifiOff } from "lucide-react";
 import { useAuth } from "../contexts/auth";
-import { useClinic } from "../contexts/clinic";
+import { useClinic, useSearch } from "../contexts/clinic";
 import Sidebar from "../components/Sidebar";
 import VisitDrawer from "../components/VisitDrawer";
 import Toasts from "../components/Toasts";
+import IdleWarning from "../components/IdleWarning";
+import { useIdleTimeout } from "../hooks/useIdleTimeout";
+import { IDLE_MINUTES, IDLE_WARN_MS, idleTimeoutMs } from "../config/app";
 import { EASE } from "../utils/motion";
 import "../styles/app.css";
 import "../styles/overlays.css";
@@ -16,7 +19,8 @@ const SEARCHABLE = ["/dashboard"];
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
-  const { query, setQuery, online } = useClinic();
+  const { online } = useClinic();
+  const { query, setQuery } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
   const outlet = useOutlet();
@@ -51,6 +55,25 @@ export default function AppLayout() {
     signOut();
     navigate("/login", { replace: true });
   }
+
+  // sessão encerrada por inatividade
+  const [timeoutMs] = useState(idleTimeoutMs);
+  const onIdle = useCallback(() => {
+    // o redirecionamento da rota privada descarta o state da navegação;
+    // o motivo vai pelo sessionStorage e o login lê uma vez
+    try {
+      sessionStorage.setItem("sinco:logout-reason", "idle");
+    } catch {
+      /* ignora */
+    }
+    signOut();
+    navigate("/login", { replace: true });
+  }, [signOut, navigate]);
+  const idle = useIdleTimeout({
+    timeoutMs,
+    warnMs: Math.min(IDLE_WARN_MS, timeoutMs / 2),
+    onTimeout: onIdle,
+  });
 
   return (
     <div className="dash">
@@ -151,6 +174,13 @@ export default function AppLayout() {
 
       <VisitDrawer />
       <Toasts />
+      <IdleWarning
+        open={idle.warning}
+        remaining={idle.remaining}
+        minutes={timeoutMs >= 60000 ? Math.round(timeoutMs / 60000) : IDLE_MINUTES}
+        onStay={idle.stayActive}
+        onLeave={handleSignOut}
+      />
     </div>
   );
 }

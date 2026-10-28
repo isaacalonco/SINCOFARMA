@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { STATUS } from "../data/catalog";
-import { useClinic, matchesQuery } from "../contexts/clinic";
+import { useClinic, useSearch, matchesQuery } from "../contexts/clinic";
 import SpotlightCard from "./SpotlightCard";
 import { isReady } from "../config/app";
 import { initials } from "../utils/initials";
@@ -39,7 +39,8 @@ export default function VisitsTable({
   showViewAll = false,
   delay = 6,
 }) {
-  const { visits, query, setQuery, openVisit } = useClinic();
+  const { visits, openVisit } = useClinic();
+  const { query, setQuery } = useSearch();
   const [filter, setFilter] = useState(lockedFilter ?? "all");
   const [expanded, setExpanded] = useState(false);
   const listPage = isReady("/atendimentos");

@@ -70,7 +70,10 @@ export const mockRepository = {
     };
   },
 
-  async createVisit(data) {
+  // `clinical` (dados pessoais e clínicos completos) é descartado de propósito:
+  // em modo demonstração nada além do resumo fica no navegador.
+  // eslint-disable-next-line no-unused-vars
+  async createVisit(data, clinical) {
     await wait(LATENCY);
     const now = new Date();
     const visit = { ...data, id: `v${now.getTime()}`, at: now.toISOString(), time: timeLabel(now), isNew: true };

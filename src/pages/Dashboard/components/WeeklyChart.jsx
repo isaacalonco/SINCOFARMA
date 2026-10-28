@@ -50,7 +50,8 @@ export default function WeeklyChart({ week, todayIndex, historicAverage = 17 }) 
             const tone = idx < todayIndex ? "past" : isToday ? "today" : `future-${Math.min(idx - todayIndex, 3)}`;
             const diff = value - historicAverage;
             return (
-              <div
+              <button
+                type="button"
                 key={WEEK_LABELS[idx]}
                 className={`bar-col${hover === idx ? " is-hover" : ""}${
                   hover !== null && hover !== idx ? " is-dim" : ""
@@ -59,11 +60,11 @@ export default function WeeklyChart({ week, todayIndex, historicAverage = 17 }) 
                 onMouseLeave={() => setHover(null)}
                 onFocus={() => setHover(idx)}
                 onBlur={() => setHover(null)}
-                tabIndex={0}
+                onClick={() => setHover((h) => (h === idx ? null : idx))}
                 aria-label={`${WEEK_NAMES[idx]}: ${value} ${isFuture ? "previstas" : "triagens"}, ${diff >= 0 ? "+" : ""}${diff} em relação à média`}
               >
-                <div className="bar-track">
-                  <div
+                <span className="bar-track">
+                  <span
                     className={`bar bar--${tone}`}
                     style={{ "--h": value / max, "--d": `${550 + idx * 70}ms` }}
                   >
@@ -76,12 +77,12 @@ export default function WeeklyChart({ week, todayIndex, historicAverage = 17 }) 
                         {WEEK_NAMES[idx]} · {diff >= 0 ? `+${diff}` : diff} vs média
                       </small>
                     </span>
-                  </div>
-                </div>
+                  </span>
+                </span>
                 <span className={`bar-label${isToday ? " is-today" : ""}`}>
                   {isToday ? `${WEEK_LABELS[idx]} · Hoje` : WEEK_LABELS[idx]}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>

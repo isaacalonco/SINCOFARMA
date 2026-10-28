@@ -645,5 +645,47 @@
 .link-btn { border: 0; background: transparent; padding: 0; font: inherit; cursor: pointer; }
 .link-arrow .rot-down { transform: rotate(90deg); }
 .link-arrow .rot-up { transform: rotate(-90deg); }
-span.legend-link { cursor: default; }
-span.legend-link:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; border-radius: 4px; }
+
+/* colunas do gráfico e itens da legenda viraram botões */
+button.bar-col {
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.bar-track { display: flex; }
+.bar { display: block; }
+button.legend-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.legend-link:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- aviso de inatividade ---------- */
+.idle-overlay { z-index: 90; }
+.idle-modal {
+  width: min(440px, 100%);
+  padding: 28px 28px 24px;
+  text-align: center;
+}
+.idle-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  background: #fef3c7;
+  color: #b45309;
+}
+.idle-modal h2 { font-size: 20px; color: var(--blue-900); margin-bottom: 8px; }
+.idle-modal p { font-size: 14px; line-height: 1.55; color: var(--muted); margin-bottom: 20px; }
+.idle-count { color: var(--blue-900); font-variant-numeric: tabular-nums; }
+.idle-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }

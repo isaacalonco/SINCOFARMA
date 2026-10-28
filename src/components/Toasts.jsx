@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { CircleCheck, Info, TriangleAlert, CircleX, X } from "lucide-react";
-import { useClinic } from "../contexts/clinic";
+import { useToasts } from "../contexts/clinic";
 
 const ICONS = { success: CircleCheck, info: Info, warn: TriangleAlert, error: CircleX };
 
 export default function Toasts() {
-  const { toasts, dismissToast } = useClinic();
+  const { toasts, dismissToast } = useToasts();
 
   return (
     <div className="toasts" aria-live="assertive">

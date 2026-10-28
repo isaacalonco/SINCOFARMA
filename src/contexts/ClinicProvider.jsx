@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClinicContext } from "./clinic";
+import { ClinicContext, SearchContext, ToastContext } from "./clinic";
 import { repository } from "../data";
 import { computeStats } from "../data/stats";
 import { useOnline } from "../hooks/useOnline";
@@ -91,13 +91,13 @@ export function ClinicProvider({ children }) {
 
   /* ---------- operações ---------- */
   const addVisit = useCallback(
-    async (payload) => {
+    async (payload, clinical = null) => {
       if (!online) {
         notify("Sem conexão: o atendimento não foi registrado.", "error");
         throw new Error("offline");
       }
       try {
-        const visit = await repository.createVisit(payload);
+        const visit = await repository.createVisit(payload, clinical);
         setData((d) => ({ ...d, visits: [visit, ...d.visits] }));
         notify(`Triagem de ${payload.name.split(" ")[0]} registrada.`, "success");
         return visit;
@@ -188,11 +188,7 @@ export function ClinicProvider({ children }) {
       unit: data.unit,
       historicAverage: data.historicAverage,
       stats,
-      query,
-      setQuery,
-      toasts,
       notify,
-      dismissToast,
       addVisit,
       updateVisit,
       syncRnds,
@@ -202,8 +198,16 @@ export function ClinicProvider({ children }) {
       openVisit,
       closeVisit,
     }),
-    [status, loadError, load, online, data, stats, query, toasts, notify, dismissToast, addVisit, updateVisit, syncRnds, syncing, resetDemo, selectedId, openVisit, closeVisit]
+    [status, loadError, load, online, data, stats, notify, addVisit, updateVisit, syncRnds, syncing, resetDemo, selectedId, openVisit, closeVisit]
   );
+  const search = useMemo(() => ({ query, setQuery }), [query]);
+  const toastValue = useMemo(() => ({ toasts, dismissToast }), [toasts, dismissToast]);
 
-  return <ClinicContext.Provider value={value}>{children}</ClinicContext.Provider>;
+  return (
+    <ClinicContext.Provider value={value}>
+      <SearchContext.Provider value={search}>
+        <ToastContext.Provider value={toastValue}>{children}</ToastContext.Provider>
+      </SearchContext.Provider>
+    </ClinicContext.Provider>
+  );
 }

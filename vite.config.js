@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+const PKG = /node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -10,10 +12,13 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined
-          if (id.includes('framer-motion') || id.includes('motion-dom') || id.includes('motion-utils')) return 'motion'
-          if (id.includes('lucide-react')) return 'icons'
-          if (id.includes('react')) return 'react'
+          const m = id.match(PKG)
+          if (!m) return undefined
+          const pkg = m[1].replace(/\\/g, '/')
+          if (['framer-motion', 'motion-dom', 'motion-utils'].includes(pkg)) return 'motion'
+          if (pkg === 'lucide-react') return 'icons'
+          if (['react', 'react-dom', 'scheduler', 'react-router', 'react-router-dom', 'cookie', 'set-cookie-parser'].includes(pkg)) return 'react'
+          if (pkg.startsWith('@fontsource')) return undefined
           return 'vendor'
         },
       },

@@ -22,7 +22,8 @@ const EmBreve = lazy(loaders.EmBreve);
 function usePreloadPages(enabled) {
   useEffect(() => {
     if (!enabled) return;
-    const run = () => Object.values(loaders).forEach((load) => load());
+    // só as páginas internas (o login já não é necessário)
+    const run = () => [loaders.Dashboard, loaders.NovaTriagem, loaders.EmBreve].forEach((load) => load());
     const idle = window.requestIdleCallback ?? ((cb) => setTimeout(cb, 1500));
     const handle = idle(run);
     return () => (window.cancelIdleCallback ?? clearTimeout)(handle);

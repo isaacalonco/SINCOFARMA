@@ -14,5 +14,22 @@ export const COMPLIANCE = {
   lgpd: false,
 };
 
+/** Minutos sem atividade até encerrar a sessão (computador compartilhado de balcão). */
+export const IDLE_MINUTES = Number(import.meta.env.VITE_IDLE_MINUTES) || 15;
+export const IDLE_WARN_MS = 60 * 1000;
+
+/** Em desenvolvimento, `localStorage["sinco:idle-ms"]` encurta o tempo para testes. */
+export function idleTimeoutMs() {
+  if (import.meta.env.DEV) {
+    try {
+      const override = Number(localStorage.getItem("sinco:idle-ms"));
+      if (override > 0) return override;
+    } catch {
+      /* ignora */
+    }
+  }
+  return IDLE_MINUTES * 60 * 1000;
+}
+
 /** Sem API configurada, o app roda com dados fictícios no navegador. */
 export const DEMO_MODE = !HAS_API;

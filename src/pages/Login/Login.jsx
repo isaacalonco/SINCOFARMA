@@ -35,6 +35,21 @@ export default function Login() {
 
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  // motivo de um encerramento automático (lido uma vez e apagado)
+  const [idleLogout] = useState(() => {
+    try {
+      return sessionStorage.getItem("sinco:logout-reason") === "idle";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem("sinco:logout-reason");
+    } catch {
+      /* ignora */
+    }
+  }, []);
   const [cardScope, animateCard] = useAnimate();
   const navTimer = useRef(null);
   useEffect(() => () => clearTimeout(navTimer.current), []);
@@ -171,6 +186,12 @@ export default function Login() {
                 animate={{ scaleX: 1, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.7, ease: EASE }}
               />
+
+              {idleLogout && !error && (
+                <p className="login-idle" role="status">
+                  Sua sessão foi encerrada por inatividade. Entre novamente para continuar.
+                </p>
+              )}
 
               <form onSubmit={handleSubmit} noValidate>
                 <motion.div {...rise(3)}>

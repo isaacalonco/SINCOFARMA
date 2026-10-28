@@ -117,7 +117,15 @@ export default function OutcomeDonut({ outcomes }) {
               return isReady(to) ? (
                 <Link to={to} className="legend-link" aria-label={label}>{inner}</Link>
               ) : (
-                <span className="legend-link" tabIndex={0} aria-label={label}>{inner}</span>
+                <button
+                  type="button"
+                  className="legend-link"
+                  aria-label={label}
+                  aria-pressed={active === s.key}
+                  onClick={() => setActive((a) => (a === s.key ? null : s.key))}
+                >
+                  {inner}
+                </button>
               );
             })()}
           </motion.li>
