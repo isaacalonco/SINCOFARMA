@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login/Login";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import EmBreve from "./pages/EmBreve/EmBreve";
+import NovaTriagem from "./pages/NovaTriagem/NovaTriagem";
 import AppLayout from "./layouts/AppLayout";
 import { ClinicProvider } from "./contexts/ClinicProvider";
 import { useAuth } from "./contexts/AuthContext";
@@ -26,7 +27,7 @@ export default function App() {
       >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/atendimentos" element={<EmBreve title="Atendimentos" />} />
-        <Route path="/nova-triagem" element={<EmBreve title="Nova Triagem" />} />
+        <Route path="/nova-triagem" element={<NovaTriagem />} />
         <Route path="/encaminhamentos" element={<EmBreve title="Encaminhamentos" />} />
         <Route path="/farmacias" element={<EmBreve title="Farmácias" />} />
         <Route path="/relatorios" element={<EmBreve title="Relatórios" />} />
