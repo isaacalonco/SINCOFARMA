@@ -19,6 +19,7 @@ import { totpUri } from "../../services/cognito";
 import { useAuth } from "../../contexts/auth";
 import logo from "../../assets/logo-sincofarma.webp";
 import LightBeams from "../../components/LightBeams";
+import { warmMark } from "../../components/glassLogo";
 import { EASE, pulse, rise as riseBase } from "../../utils/motion";
 import { useSpotlightTilt } from "../../hooks/useSpotlightTilt";
 import { COMPLIANCE, DEMO_MODE } from "../../config/app";
@@ -69,6 +70,8 @@ export default function Login() {
   const [cardScope, animateCard] = useAnimate();
   const navTimer = useRef(null);
   useEffect(() => () => clearTimeout(navTimer.current), []);
+  // a marca da tela de entrada fica pronta enquanto a pessoa digita
+  useEffect(warmMark, []);
 
   const loading = status === "loading";
   const success = status === "success";
