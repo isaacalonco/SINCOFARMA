@@ -61,7 +61,7 @@ def aws(monkeypatch):
         yield api
 
 
-def event(method="GET", path="/dashboard", body=None, user="52998224725", groups="[unidade:asa-sul farmaceutico]", path_params=None):
+def event(method="GET", path="/dashboard", body=None, user="52998224725", groups="[unidade:asa-sul papel:farmaceutico]", path_params=None, query=None):
     """Evento no formato do HTTP API (payload 2.0) já com claims do autorizador JWT."""
     return {
         "version": "2.0",
@@ -70,6 +70,7 @@ def event(method="GET", path="/dashboard", body=None, user="52998224725", groups
         "body": json.dumps(body) if body is not None else None,
         "isBase64Encoded": False,
         "pathParameters": path_params or {},
+        "queryStringParameters": query,
         "requestContext": {
             "http": {"method": method, "path": path},
             "authorizer": {"jwt": {"claims": {

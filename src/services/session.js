@@ -34,6 +34,17 @@ export function profileFrom(idToken) {
     name: c.name || c["cognito:username"] || "Farmacêutico(a)",
     crf: c["custom:crf"] ? `CRF-DF ${c["custom:crf"]} · RT` : undefined,
     sub: c.sub,
+    ...accessFrom(c["cognito:groups"]),
+  };
+}
+
+/** Papéis (`papel:*`) e unidade (`unidade:*`) a partir dos grupos do Cognito. */
+export function accessFrom(groups) {
+  const list = Array.isArray(groups) ? groups : [];
+  const unidades = list.filter((g) => g.startsWith("unidade:")).map((g) => g.slice(8));
+  return {
+    roles: list.filter((g) => g.startsWith("papel:")).map((g) => g.slice(6)),
+    unit: unidades.length === 1 ? unidades[0] : null,
   };
 }
 
@@ -49,7 +60,9 @@ export function start(tokens) {
 }
 
 export function storedUser() {
-  return readStored()?.user ?? null;
+  const user = readStored()?.user ?? null;
+  // sessão de antes dos papéis: entra de novo para receber o perfil completo
+  return user && Array.isArray(user.roles) ? user : null;
 }
 
 /** Token de acesso válido; renova pelo refresh token quando falta menos de 1 min. */

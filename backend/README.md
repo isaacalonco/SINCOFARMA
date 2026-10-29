@@ -17,13 +17,27 @@ tests/                         pytest com DynamoDB e Cognito simulados
 
 | Método | Rota | O que faz |
 |---|---|---|
-| GET | `/dashboard` | atendimentos de hoje + indicadores da unidade |
+| GET | `/dashboard` | atendimentos de hoje + indicadores da unidade. Admin: `?unidade=<id>`, só agregados (`visits` vazio, resumo em `todaySummary`) |
 | POST | `/visits` | registra triagem: valida, emite protocolo, grava resumo, registro clínico e auditoria |
-| PATCH | `/visits/{id}` | troca desfecho e/ou Red Flag (concorrência otimista + auditoria) |
+| PATCH | `/visits/{id}` | troca desfecho e/ou Red Flag, só de quem registrou (concorrência otimista + auditoria) |
 | POST | `/rnds/sync` | responde 501 até a integração com a RNDS existir |
 
-Todas exigem o **token de acesso** do Cognito no cabeçalho `Authorization`. A unidade do usuário
-vem do grupo `unidade:<id>` no token; cada usuário pertence a exatamente uma unidade.
+Todas exigem o **token de acesso** do Cognito no cabeçalho `Authorization`.
+
+## Papéis e permissões
+
+Grupos do Cognito no token: `papel:<nome>` (um ou mais; as permissões somam) e `unidade:<id>` (no máximo uma).
+A tabela é a de `src/painel/comum/auth.py`; o front espelha em `src/services/permissoes.js` só para esconder telas.
+
+| | Farmacêutico | Médico | Admin (Sincofarma) |
+|---|---|---|---|
+| Unidade | obrigatória | não usa | não usa |
+| Atendimentos com dados do paciente | da própria unidade | só os encaminhados a ele (rotas a fazer) | nunca |
+| Indicadores | da própria unidade | não | de qualquer unidade (`?unidade=`) |
+| Registrar triagem | sim | não | não |
+| Mudar desfecho e Red Flag | só nos que registrou | não | não |
+
+Atendimentos chegam com `mine: true/false` (quem vê é quem registrou). Sem nenhum `papel:*` a API responde 403.
 
 ## Dados
 
@@ -37,15 +51,15 @@ vem do grupo `unidade:<id>` no token; cada usuário pertence a exatamente uma un
 cd backend
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows
-.venv/Scripts/python -m pytest                               # 20 testes
+.venv/Scripts/python -m pytest                               # 29 testes
 .venv/Scripts/cfn-lint --regions sa-east-1 -- template.yaml
 ```
 
 Testar o front contra o backend sem AWS:
 
 ```bash
-.venv/Scripts/python scripts/servidor_local.py --porta 3001 --origem http://localhost:5174
-# imprime o CLIENT_ID; o usuário de teste é CPF 52998224725 / senha temporária Temporaria#2026
+.venv/Scripts/python scripts/servidor_local.py --porta 3001 --origem http://localhost:5173
+# imprime o CLIENT_ID e um usuário por papel (farmacêutico, administrador, médico), senha temporária Temporaria#2026
 ```
 
 ## Deploy
@@ -65,8 +79,12 @@ Depois do deploy:
 ```bash
 python scripts/cadastrar.py unidade --stack sincofarma-painel-dev --id asa-sul \
   --nome "Drogaria Planalto - Asa Sul" --meta-mensal 525
-python scripts/cadastrar.py usuario --stack sincofarma-painel-dev --unidade asa-sul \
+python scripts/cadastrar.py usuario --stack sincofarma-painel-dev --papel farmaceutico --unidade asa-sul \
   --cpf 52998224725 --crf 4192 --nome "Dra. Ana Souza" --email ana@exemplo.com.br
+python scripts/cadastrar.py usuario --stack sincofarma-painel-dev --papel admin \
+  --cpf 11144477735 --nome "Gestor Sincofarma" --email gestor@exemplo.com.br
+# dar ou tirar papel de quem já existe (vale no próximo login)
+python scripts/cadastrar.py papel --stack sincofarma-painel-dev --cpf 52998224725 --adicionar admin
 ```
 
 No front (Vercel → Settings → Environment Variables), com as saídas do stack:

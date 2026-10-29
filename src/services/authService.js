@@ -9,6 +9,8 @@ export { AuthError } from "./cognito";
 
 const DEMO_PASSWORD = "12345678";
 const DEMO_USER_KEY = "user";
+// a demonstração mostra a visão do farmacêutico
+const DEMO_ACCESS = { roles: ["farmaceutico"], unit: "demo" };
 
 export async function login(identifier, password) {
   if (AUTH_MODE === "cognito") {
@@ -17,7 +19,7 @@ export async function login(identifier, password) {
   }
   await new Promise((r) => setTimeout(r, 600));
   if (password !== DEMO_PASSWORD) throw new Error("Credenciais inválidas.");
-  const user = { name: "Dra. Ana Souza", crf: "CRF-DF 4192 · RT", onDuty: true };
+  const user = { name: "Dra. Ana Souza", crf: "CRF-DF 4192 · RT", onDuty: true, ...DEMO_ACCESS };
   localStorage.setItem(DEMO_USER_KEY, JSON.stringify(user));
   localStorage.setItem("token", "demo");
   return user;
@@ -48,7 +50,7 @@ export function currentUser() {
   if (AUTH_MODE === "cognito") return session.storedUser();
   try {
     const saved = JSON.parse(localStorage.getItem(DEMO_USER_KEY));
-    return saved && typeof saved === "object" && typeof saved.name === "string" ? saved : null;
+    return saved && typeof saved === "object" && typeof saved.name === "string" ? { ...saved, ...DEMO_ACCESS } : null;
   } catch {
     return null;
   }

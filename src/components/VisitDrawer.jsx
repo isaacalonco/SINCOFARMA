@@ -5,10 +5,15 @@ import { useClinic } from "../contexts/clinic";
 import { STATUS } from "../data/catalog";
 import { initials } from "../utils/initials";
 import { useFocusTrap, useModalBackdrop } from "../hooks/useFocusTrap";
+import { useAuth } from "../contexts/auth";
+import { podeAlterar } from "../services/permissoes";
 
 export default function VisitDrawer() {
   const { visits, selectedId, closeVisit, updateVisit, notify } = useClinic();
+  const { user } = useAuth();
   const visit = visits.find((v) => v.id === selectedId);
+  // desfecho e Red Flag: só quem registrou (o servidor recusa os demais)
+  const editable = podeAlterar(user, visit);
   const panelRef = useRef(null);
   useFocusTrap(panelRef, !!visit, { onClose: closeVisit, initialFocus: ".drawer-head h2" });
   useModalBackdrop(!!visit, ".drawer, .drawer-scrim, .toasts");
@@ -91,7 +96,12 @@ export default function VisitDrawer() {
                 <p>{visit.signs || "Sem observações registradas."}</p>
               </section>
 
-              <fieldset className="field">
+              {!editable && (
+                <p className="drawer-readonly" role="note">
+                  Só quem registrou este atendimento pode mudar o desfecho e a Red Flag.
+                </p>
+              )}
+              <fieldset className="field" disabled={!editable}>
                 <legend>DESFECHO</legend>
                 <div className="segmented segmented--stack">
                   {Object.entries(STATUS).map(([key, s]) => (
@@ -123,6 +133,7 @@ export default function VisitDrawer() {
                 className={`flag-toggle${visit.urgent ? " is-on" : ""}`}
                 onClick={toggleUrgent}
                 aria-pressed={!!visit.urgent}
+                disabled={!editable}
               >
                 <span className="switch"><i /></span>
                 <TriangleAlert size={16} />

@@ -689,3 +689,17 @@ button.legend-link:focus-visible { outline: 2px solid var(--blue-500); outline-o
 .idle-modal p { font-size: 14px; line-height: 1.55; color: var(--muted); margin-bottom: 20px; }
 .idle-count { color: var(--blue-900); font-variant-numeric: tabular-nums; }
 .idle-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+/* atendimento de outro farmacêutico: só leitura */
+.drawer-readonly {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eaf3fc;
+  border: 1px solid #c9ddf1;
+  color: #1e4f7d;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.field:disabled .seg,
+.flag-toggle:disabled { opacity: 0.55; cursor: not-allowed; }

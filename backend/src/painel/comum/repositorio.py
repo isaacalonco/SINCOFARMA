@@ -65,19 +65,20 @@ def visit_instant(visit_id: str) -> datetime:
 def unit_profile(unit: str) -> dict:
     item = _painel().get_item(Key={"PK": f"UNIT#{unit}", "SK": "PROFILE"}).get("Item") or {}
     return {
+        "exists": bool(item),
         "name": item.get("name") or unit,
         "monthGoal": int(item.get("monthGoal") or 0),
         "triageGoalMin": int(item.get("triageGoalMin") or 10),
     }
 
 
-def visits_of_day(unit: str, day: str, limit: int = 300) -> list[dict]:
+def visits_of_day(unit: str, day: str, viewer_sub: str, limit: int = 300) -> list[dict]:
     resp = _painel().query(
         KeyConditionExpression=Key("PK").eq(pk_day(unit, day)) & Key("SK").begins_with("VISIT#"),
         ScanIndexForward=False,  # mais recentes primeiro
         Limit=limit,
     )
-    return [_public_visit(i) for i in resp.get("Items", [])]
+    return [_public_visit(i, viewer_sub) for i in resp.get("Items", [])]
 
 
 def stats_items(unit: str, days: list[str], months: list[str]) -> dict[str, dict]:
@@ -96,8 +97,8 @@ def stats_items(unit: str, days: list[str], months: list[str]) -> dict[str, dict
     return found
 
 
-def _public_visit(item: dict) -> dict:
-    """Formato que o front espera (sem chaves internas)."""
+def _public_visit(item: dict, viewer_sub: str) -> dict:
+    """Formato que o front espera (sem chaves internas). `mine`: quem vê registrou o atendimento."""
     return {
         "id": item["id"],
         "at": item["at"],
@@ -112,6 +113,7 @@ def _public_visit(item: dict) -> dict:
         "redFlags": item.get("redFlags", []),
         "status": item["status"],
         "urgent": bool(item.get("urgent")),
+        "mine": bool(viewer_sub) and item.get("createdBy") == viewer_sub,
         **({"source": item["source"]} if item.get("source") else {}),
     }
 
@@ -212,7 +214,7 @@ def create_visit(caller, summary: dict, clinical: dict, duration_sec: int) -> di
             _audit(clinico, visit_id, caller, "create", {"status": summary["status"], "urgent": summary["urgent"]}),
         ]
     )
-    return _public_visit(visit)
+    return _public_visit(visit, caller.sub)
 
 
 def update_visit(caller, visit_id: str, patch: dict) -> dict:
@@ -223,12 +225,14 @@ def update_visit(caller, visit_id: str, patch: dict) -> dict:
     if not current:
         # inexistente ou de outra unidade: mesma resposta (não revela existência)
         raise HttpError(404, "Atendimento não encontrado.")
+    if current.get("createdBy") != caller.sub:
+        raise HttpError(403, "Só quem registrou o atendimento pode alterá-lo.")
 
     painel, clinico = os.environ["TABELA_PAINEL"], os.environ["TABELA_CLINICO"]
     new_status = patch.get("status", current["status"])
     new_urgent = patch.get("urgent", bool(current.get("urgent")))
     if new_status == current["status"] and new_urgent == bool(current.get("urgent")):
-        return _public_visit(current)  # nada mudou
+        return _public_visit(current, caller.sub)  # nada mudou
 
     deltas: dict[str, int] = {}
     if new_status != current["status"]:
@@ -272,4 +276,4 @@ def update_visit(caller, visit_id: str, patch: dict) -> dict:
             raise HttpError(409, "O atendimento foi alterado por outra pessoa. Recarregue o painel.") from exc
         raise
 
-    return _public_visit({**current, "status": new_status, "urgent": new_urgent})
+    return _public_visit({**current, "status": new_status, "urgent": new_urgent}, caller.sub)

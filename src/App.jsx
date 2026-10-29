@@ -4,6 +4,7 @@ import AppLayout from "./layouts/AppLayout";
 import { ClinicProvider } from "./contexts/ClinicProvider";
 import { useAuth } from "./contexts/auth";
 import RouteFallback from "./components/RouteFallback";
+import { podeRota, rotaInicial } from "./services/permissoes";
 
 // cada página vira um chunk separado: o login não baixa o código do painel
 const loaders = {
@@ -11,11 +12,13 @@ const loaders = {
   Dashboard: () => import("./pages/Dashboard/Dashboard"),
   NovaTriagem: () => import("./pages/NovaTriagem/NovaTriagem"),
   EmBreve: () => import("./pages/EmBreve/EmBreve"),
+  SemAcesso: () => import("./pages/SemAcesso/SemAcesso"),
 };
 const Login = lazy(loaders.Login);
 const Dashboard = lazy(loaders.Dashboard);
 const NovaTriagem = lazy(loaders.NovaTriagem);
 const EmBreve = lazy(loaders.EmBreve);
+const SemAcesso = lazy(loaders.SemAcesso);
 
 /* Depois que o app estiver logado e ocioso, baixa as outras páginas em
    segundo plano para a troca de rota ser instantânea. */
@@ -35,11 +38,33 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
+/** Tela fora do perfil do usuário: volta para a primeira que ele pode abrir. */
+function Permitida({ path, children }) {
+  const { user } = useAuth();
+  return podeRota(user, path) ? children : <Navigate to={rotaInicial(user)} replace />;
+}
+
+/** Destino padrão de quem está logado (depende do perfil). */
+function Inicio() {
+  const { user } = useAuth();
+  return <Navigate to={user ? rotaInicial(user) : "/login"} replace />;
+}
+
 /** Quem já está logado não vê a tela de login. */
 function PublicOnly({ children }) {
   const { user } = useAuth();
-  return user ? <Navigate to="/dashboard" replace /> : children;
+  return user ? <Navigate to={rotaInicial(user)} replace /> : children;
 }
+
+// rota -> página (a permissão de cada uma está em services/permissoes.js)
+const PAGINAS = [
+  ["/dashboard", <Dashboard />],
+  ["/atendimentos", <EmBreve title="Atendimentos" />],
+  ["/nova-triagem", <NovaTriagem />],
+  ["/encaminhamentos", <EmBreve title="Encaminhamentos" />],
+  ["/farmacias", <EmBreve title="Farmácias" />],
+  ["/relatorios", <EmBreve title="Relatórios" />],
+];
 
 export default function App() {
   const { user } = useAuth();
@@ -49,7 +74,7 @@ export default function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Inicio />} />
         <Route
           element={
             <PrivateRoute>
@@ -59,12 +84,10 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/atendimentos" element={<EmBreve title="Atendimentos" />} />
-          <Route path="/nova-triagem" element={<NovaTriagem />} />
-          <Route path="/encaminhamentos" element={<EmBreve title="Encaminhamentos" />} />
-          <Route path="/farmacias" element={<EmBreve title="Farmácias" />} />
-          <Route path="/relatorios" element={<EmBreve title="Relatórios" />} />
+          {PAGINAS.map(([path, page]) => (
+            <Route key={path} path={path} element={<Permitida path={path}>{page}</Permitida>} />
+          ))}
+          <Route path="/sem-acesso" element={<SemAcesso />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

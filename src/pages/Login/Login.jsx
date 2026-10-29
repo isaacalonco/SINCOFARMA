@@ -112,7 +112,8 @@ export default function Login() {
       else if (type === "SOFTWARE_TOKEN_MFA") await answerTotp(challenge, mfaCode);
       else await signIn(identifier, password);
       setStatus("success");
-      navTimer.current = setTimeout(() => navigate("/dashboard"), 800);
+      // "/" leva à primeira tela do perfil (farmacêutico, médico ou administração)
+      navTimer.current = setTimeout(() => navigate("/"), 800);
     } catch (err) {
       let failure = err;
       if (err.code === "Challenge") {
