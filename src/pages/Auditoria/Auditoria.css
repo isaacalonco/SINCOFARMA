@@ -1,15 +1,5 @@
 /* ---------- Auditoria ---------- */
 .audit-note { background: #eef6f1; border-color: #c9e8d6; color: #0f5c40; }
-.audit-month input {
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--soft);
-  font: inherit;
-  font-size: 13px;
-  color: var(--text);
-}
 .audit-table td { vertical-align: top; }
 .audit-table td:first-child { white-space: nowrap; }
 .audit-table td:nth-child(2) { min-width: 150px; }

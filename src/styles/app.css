@@ -545,6 +545,7 @@
     border-color var(--dur-med);
 }
 .btn:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(26, 111, 181, 0.25); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; filter: none; transform: none; }
 .btn--ghost {
   background: #fff;
   color: var(--blue-900);
@@ -1074,7 +1075,6 @@
 .table-card > .card-head { padding: 0 16px 16px; align-items: center; }
 .table-tools { display: flex; align-items: center; gap: 12px; }
 
-.dropdown { position: relative; }
 .btn-filter {
   display: inline-flex;
   align-items: center;
@@ -1095,55 +1095,6 @@
 .btn-filter.is-filtered { color: var(--blue-700); border-color: #b5cde6; }
 .btn-filter .chev { transition: transform var(--dur-med) var(--ease-spring); }
 .btn-filter.is-open .chev { transform: rotate(180deg); }
-
-.dropdown-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 10;
-  min-width: 200px;
-  padding: 6px;
-  list-style: none;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid var(--line);
-  box-shadow: 0 18px 36px -14px rgba(10, 37, 64, 0.35);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px) scale(0.98);
-  transform-origin: top right;
-  transition:
-    opacity var(--dur-fast),
-    transform var(--dur-med) var(--ease-spring),
-    visibility 0s linear var(--dur-med);
-}
-.dropdown-menu.is-open {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-  transition:
-    opacity var(--dur-fast),
-    transform var(--dur-med) var(--ease-spring),
-    visibility 0s;
-}
-.dropdown-menu button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  font-size: 12px;
-  color: #334155;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), padding var(--dur-med) var(--ease-out);
-}
-.dropdown-menu button:hover { background: var(--soft); padding-left: 14px; }
-.dropdown-menu button.is-selected { color: var(--blue-700); font-weight: 600; }
 
 .link-arrow {
   display: inline-flex;

@@ -447,7 +447,6 @@ label.is-focused { color: var(--blue-500); }
   color: #92400e;
 }
 .notice--warn:hover { border-color: #fcd34d; }
-.hr-gap { margin-top: 0; }
 
 .login-idle {
   margin: -6px 0 18px;
