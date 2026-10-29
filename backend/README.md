@@ -38,8 +38,8 @@ A tabela é a de `src/painel/comum/auth.py`; o front espelha em `src/services/pe
 | Registrar triagem | sim | não | não |
 | Mudar desfecho e Red Flag | só nos que registrou | não | não |
 
-Páginas do site por perfil (front): farmacêutico vê Atendimentos, Nova Triagem e Encaminhamentos; médico, só
-Encaminhamentos; administração, todas, mas só com números. Atendimentos chegam com `mine: true/false` (quem vê é quem registrou). Sem nenhum `papel:*` a API responde 403.
+Páginas do site por perfil (front): farmacêutico vê Dashboard, Atendimentos, Nova Triagem e Encaminhamentos;
+médico, só Encaminhamentos; administração, Dashboard (só números), Farmácias e Relatórios. Atendimentos chegam com `mine: true/false` (quem vê é quem registrou). Sem nenhum `papel:*` a API responde 403.
 
 ## Dados
 

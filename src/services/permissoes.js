@@ -36,15 +36,17 @@ export function podeAlterar(user, visit) {
   return pode(user, "alterar_atendimento") && visit?.mine !== false;
 }
 
-// página -> papéis que a abrem (definido com a coordenação do projeto).
-// Abrir a página não libera os dados: a administração vê o Dashboard só com
-// números, sem paciente, e a Nova Triagem sem poder registrar.
-// A ordem decide a tela inicial de cada perfil.
+// página -> papéis que a abrem. Cada perfil vê o que o trabalho dele pede:
+// - farmacêutico: operação da própria farmácia (atende, registra, encaminha);
+// - médico: os encaminhamentos que recebe (é o "painel" dele);
+// - administração: gestão, só com números (sem listas de pacientes).
+// Abrir a página não libera dados: quem decide é o backend.
+// A ordem decide a tela inicial (farmacêutico e administração: Dashboard; médico: Encaminhamentos).
 const ROTAS = {
-  "/dashboard": ["admin"],
-  "/atendimentos": ["farmaceutico", "admin"],
-  "/nova-triagem": ["farmaceutico", "admin"],
-  "/encaminhamentos": ["farmaceutico", "medico", "admin"],
+  "/dashboard": ["farmaceutico", "admin"],
+  "/atendimentos": ["farmaceutico"],
+  "/nova-triagem": ["farmaceutico"],
+  "/encaminhamentos": ["farmaceutico", "medico"],
   "/farmacias": ["admin"],
   "/relatorios": ["admin"],
 };
