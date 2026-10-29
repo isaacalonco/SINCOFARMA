@@ -10,6 +10,7 @@ import KpiCards from "./components/KpiCards";
 import WeeklyChart from "./components/WeeklyChart";
 import OutcomeDonut from "./components/OutcomeDonut";
 import VisitsTable from "../../components/VisitsTable";
+import Select from "../../components/Select";
 import { rise, press } from "../../utils/motion";
 
 const MotionLink = motion.create(Link);
@@ -76,15 +77,16 @@ export default function Dashboard() {
             )}
           </motion.p>
           {seesAllUnits && units.length > 0 ? (
-            <motion.label className="unit-select" {...rise(3)}>
-              <Store size={15} aria-hidden="true" />
-              <span className="sr-only">Farmácia</span>
-              <select value={viewUnit ?? ""} onChange={(e) => chooseUnit(e.target.value)}>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-            </motion.label>
+            <motion.div {...rise(3)}>
+              <Select
+                className="unit-select"
+                icon={Store}
+                label="Farmácia"
+                value={viewUnit ?? ""}
+                onChange={chooseUnit}
+                options={units.map((u) => ({ value: u.id, label: u.name }))}
+              />
+            </motion.div>
           ) : (
             <motion.p className="unit" {...rise(3)}>{unit}</motion.p>
           )}

@@ -3,6 +3,7 @@
 // demonstração com a senha fixa abaixo (nunca em produção).
 import * as cognito from "./cognito";
 import * as session from "./session";
+import * as device from "./device";
 
 export const AUTH_MODE = cognito.COGNITO_ENABLED ? "cognito" : "demo";
 export { AuthError } from "./cognito";
@@ -35,14 +36,14 @@ export async function completeNewPassword(challenge, newPassword) {
 export const startTotpSetup = (challenge) => cognito.startTotpSetup(challenge);
 
 /** Confere o primeiro código do app autenticador e entra. */
-export async function finishTotpSetup(setup, code) {
-  const tokens = await cognito.finishTotpSetup(setup, code);
+export async function finishTotpSetup(setup, code, trust = false) {
+  const tokens = await cognito.finishTotpSetup(setup, code, trust);
   return session.start(tokens);
 }
 
 /** Login com MFA: código de 6 dígitos do app autenticador. */
-export async function answerTotp(challenge, code) {
-  const tokens = await cognito.answerTotp(challenge, code);
+export async function answerTotp(challenge, code, trust = false) {
+  const tokens = await cognito.answerTotp(challenge, code, trust);
   return session.start(tokens);
 }
 
@@ -80,7 +81,9 @@ export const account = {
   startTotpChange: () => (AUTH_MODE === "cognito" ? withToken(cognito.startTotpChange) : DEMO_BLOCK()),
   finishTotpChange: (code) => (AUTH_MODE === "cognito" ? withToken((t) => cognito.finishTotpChange(t, code)) : DEMO_BLOCK()),
   /** Encerra em todos os aparelhos; depois disso esta aba também sai. */
-  signOutEverywhere: () => (AUTH_MODE === "cognito" ? withToken(cognito.globalSignOut) : Promise.resolve()),
+  // também deixa de confiar neste computador (o código volta a ser pedido)
+  signOutEverywhere: () =>
+    AUTH_MODE === "cognito" ? withToken(cognito.globalSignOut).then(device.forgetAll) : Promise.resolve(),
   forgotPassword: (identifier) => (AUTH_MODE === "cognito" ? cognito.forgotPassword(identifier) : DEMO_BLOCK()),
   confirmForgotPassword: (identifier, code, password) =>
     AUTH_MODE === "cognito" ? cognito.confirmForgotPassword(identifier, code, password) : DEMO_BLOCK(),

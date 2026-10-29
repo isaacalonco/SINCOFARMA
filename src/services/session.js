@@ -52,7 +52,8 @@ export function start(tokens) {
   const user = profileFrom(tokens.idToken);
   access = { token: tokens.accessToken, exp: decode(tokens.accessToken).exp * 1000 };
   try {
-    sessionStorage.setItem(KEY, JSON.stringify({ refreshToken: tokens.refreshToken, user }));
+    // deviceKey: o Cognito exige a chave do aparelho para renovar o acesso
+    sessionStorage.setItem(KEY, JSON.stringify({ refreshToken: tokens.refreshToken, deviceKey: tokens.deviceKey ?? null, user }));
   } catch {
     /* modo privado sem armazenamento: a sessão dura só enquanto a página estiver aberta */
   }
@@ -72,7 +73,7 @@ export async function getAccessToken() {
   if (!stored?.refreshToken) return null;
   if (!refreshing) {
     refreshing = cognito
-      .refresh(stored.refreshToken)
+      .refresh(stored.refreshToken, stored.deviceKey)
       .then((t) => {
         access = { token: t.accessToken, exp: decode(t.accessToken).exp * 1000 };
         return access.token;

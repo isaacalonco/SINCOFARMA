@@ -13,7 +13,7 @@ import {
   LogOut,
   X,
 } from "lucide-react";
-import logo from "../assets/logo-sincofarma.png";
+import logo from "../assets/logo-sincofarma.webp";
 import { useClinic } from "../contexts/clinic";
 import { initials } from "../utils/initials";
 import { EASE, SPRING } from "../utils/motion";

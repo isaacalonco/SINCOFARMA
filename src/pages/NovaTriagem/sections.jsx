@@ -1,6 +1,7 @@
 // Seções do formulário. Cada uma recebe o estado e os manipuladores da página.
 import { motion, AnimatePresence } from "framer-motion";
 import { SPRING } from "../../utils/motion";
+import Select from "../../components/Select";
 import { Field, FieldGroup, Section, ChipField } from "./fields";
 import { RISK_LEVELS, RED_FLAGS, CODE_SUGGESTIONS, OBS_LIMIT, RANGES } from "./constants";
 import { rangeMsg, paError } from "./validation";
@@ -24,11 +25,13 @@ export function IdentificacaoSection({ form, on, bad }) {
             onChange={on.masked("nascimento", "##/##/####")} />
         </Field>
         <Field label="Sexo" invalid={bad("sexo")} error="Selecione o sexo.">
-          <select value={form.sexo} onChange={on.text("sexo")}>
-            <option value="">Selecione uma opção</option>
-            <option value="F">Feminino</option>
-            <option value="M">Masculino</option>
-          </select>
+          <Select
+            className="sel--bare"
+            placeholder="Selecione uma opção"
+            value={form.sexo}
+            onChange={(v) => on.text("sexo")({ target: { value: v } })}
+            options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]}
+          />
         </Field>
         <Field label="Telefone">
           <input type="tel" inputMode="numeric" placeholder="(61) 99999-0000" value={form.telefone}

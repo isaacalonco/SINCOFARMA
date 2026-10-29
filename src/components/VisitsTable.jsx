@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ListFilter,
-  ChevronDown,
   ArrowRight,
   TriangleAlert,
   FileText,
@@ -15,6 +14,7 @@ import {
 import { STATUS } from "../data/catalog";
 import { useClinic, useSearch, matchesQuery } from "../contexts/clinic";
 import SpotlightCard from "./SpotlightCard";
+import Select from "./Select";
 import { isReady } from "../config/app";
 import { initials } from "../utils/initials";
 
@@ -60,18 +60,14 @@ export default function VisitsTable({
         </div>
         <div className="table-tools">
           {!lockedFilter && (
-            <label className={`btn-filter${filter !== "all" ? " is-filtered" : ""}`}>
-              <ListFilter size={14} aria-hidden="true" />
-              <span className="sr-only">Filtrar por desfecho</span>
-              <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-                {FILTERS.map((f) => (
-                  <option key={f.key} value={f.key}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="chev" aria-hidden="true" />
-            </label>
+            <Select
+              className={`btn-filter${filter !== "all" ? " is-filtered" : ""}`}
+              icon={ListFilter}
+              label="Filtrar por desfecho"
+              value={filter}
+              onChange={setFilter}
+              options={FILTERS.map((f) => ({ value: f.key, label: f.label }))}
+            />
           )}
           {showViewAll &&
             (listPage ? (

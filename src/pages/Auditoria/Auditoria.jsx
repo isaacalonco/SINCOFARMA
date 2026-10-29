@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { TriangleAlert, ListFilter, ChevronDown, Store, ShieldCheck } from "lucide-react";
+import { TriangleAlert, ListFilter, Store, ShieldCheck, CalendarDays } from "lucide-react";
 import SpotlightCard from "../../components/SpotlightCard";
+import Select from "../../components/Select";
 import { repository } from "../../data";
 import { PAPEIS } from "../../services/permissoes";
 import { STATUS } from "../../data/catalog";
@@ -23,6 +24,15 @@ const ACTIONS = {
 const GROUPS = { atendimentos: "Atendimentos", encaminhamentos: "Encaminhamentos", usuarios: "Usuários e acessos" };
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
+// últimos 12 meses, do mais recente para o mais antigo
+const MONTHS = Array.from({ length: 12 }, (_, i) => {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - i);
+  const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  return { value, label: label[0].toUpperCase() + label.slice(1) };
+});
 const when = (iso) =>
   new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
@@ -116,28 +126,23 @@ export default function Auditoria() {
             <p>{state.status === "loading" ? "Carregando…" : `${events.length} ${events.length === 1 ? "evento" : "eventos"}`}</p>
           </div>
           <div className="table-tools">
-            <label className="audit-month">
-              <span className="sr-only">Mês</span>
-              <input type="month" value={month} max={thisMonth()} onChange={(e) => changeMonth(e.target.value)} />
-            </label>
-            <label className={`btn-filter${group !== "all" ? " is-filtered" : ""}`}>
-              <ListFilter size={14} aria-hidden="true" />
-              <span className="sr-only">Tipo de ação</span>
-              <select value={group} onChange={(e) => setGroup(e.target.value)}>
-                <option value="all">Todas as ações</option>
-                {Object.entries(GROUPS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-              </select>
-              <ChevronDown size={14} className="chev" aria-hidden="true" />
-            </label>
-            <label className={`btn-filter${unit !== "all" ? " is-filtered" : ""}`}>
-              <Store size={14} aria-hidden="true" />
-              <span className="sr-only">Farmácia</span>
-              <select value={unit} onChange={(e) => setUnit(e.target.value)}>
-                <option value="all">Todas as farmácias</option>
-                {state.units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-              <ChevronDown size={14} className="chev" aria-hidden="true" />
-            </label>
+            <Select className="btn-filter" icon={CalendarDays} label="Mês" value={month} onChange={changeMonth} options={MONTHS} />
+            <Select
+              className={`btn-filter${group !== "all" ? " is-filtered" : ""}`}
+              icon={ListFilter}
+              label="Tipo de ação"
+              value={group}
+              onChange={setGroup}
+              options={[{ value: "all", label: "Todas as ações" }, ...Object.entries(GROUPS).map(([k, l]) => ({ value: k, label: l }))]}
+            />
+            <Select
+              className={`btn-filter${unit !== "all" ? " is-filtered" : ""}`}
+              icon={Store}
+              label="Farmácia"
+              value={unit}
+              onChange={setUnit}
+              options={[{ value: "all", label: "Todas as farmácias" }, ...state.units.map((u) => ({ value: u.id, label: u.name }))]}
+            />
           </div>
         </header>
 

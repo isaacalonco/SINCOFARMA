@@ -2,6 +2,7 @@ import { cloneElement, useId, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, UserPlus, UserCog, Mail, Smartphone, Power, AlertCircle } from "lucide-react";
 import { repository } from "../../data";
+import Select from "../../components/Select";
 import { useAuth } from "../../contexts/auth";
 import { useClinic } from "../../contexts/clinic";
 import { PAPEIS } from "../../services/permissoes";
@@ -144,12 +145,12 @@ function UserDialog({ user, units, onClose, onSaved }) {
 
           <div className="form-grid">
             <Field label={isPharm ? "FARMÁCIA" : "FARMÁCIA (OPCIONAL)"} error={errors.unit}>
-              <select value={form.unit} onChange={set("unit")}>
-                <option value="">Nenhuma</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
+              <Select
+                className="sel--field"
+                value={form.unit}
+                onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
+                options={[{ value: "", label: "Nenhuma" }, ...units.map((u) => ({ value: u.id, label: u.name }))]}
+              />
             </Field>
             {creating && isPharm && (
               <Field label="CRF-DF" error={errors.crf}>

@@ -136,6 +136,11 @@ Resources:
       # MFA obrigatório por app autenticador (TOTP); o painel conduz o cadastro no primeiro login
       MfaConfiguration: "ON"
       EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      # "confiar neste computador": a pessoa escolhe; aparelho lembrado pula o código do MFA.
+      # O prazo de 24 h é garantido pela tarefa EsquecerAparelhosFn (o Cognito não expira sozinho).
+      DeviceConfiguration:
+        ChallengeRequiredOnNewDevice: true
+        DeviceOnlyRememberedOnUserPrompt: true
       Schema:
         - { Name: name, AttributeDataType: String, Mutable: true, Required: true }
         - { Name: email, AttributeDataType: String, Mutable: true, Required: true }
@@ -607,6 +612,30 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${AuditoriaFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  # ---------------------------------------------------------------- tarefas agendadas
+  EsquecerAparelhosFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-esquecer-aparelhos"
+      Handler: painel.tarefas.esquecer_aparelhos
+      Timeout: 120
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [cognito-idp:ListUsers, cognito-idp:AdminListDevices, cognito-idp:AdminForgetDevice]
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        DeHoraEmHora:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Description: Esquece aparelhos lembrados ha mais de 24 h
+
+  EsquecerAparelhosLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${EsquecerAparelhosFn}"
       RetentionInDays: !Ref LogRetentionDays
   DashboardLogs:
     Type: AWS::Logs::LogGroup
