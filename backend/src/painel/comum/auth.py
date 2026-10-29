@@ -1,18 +1,52 @@
-"""Identidade de quem chama, a partir das claims validadas pelo autorizador JWT."""
+"""Identidade de quem chama, a partir das claims validadas pelo autorizador JWT.
+
+Papéis vêm de grupos do Cognito `papel:<nome>` e se somam (quem tem dois papéis tem as
+permissões dos dois). A unidade vem do grupo `unidade:<id>`. Esta é a fonte da verdade
+das permissões; `src/services/permissoes.js` no front só espelha a tabela para esconder telas.
+"""
 
 from dataclasses import dataclass
 
 from .http import HttpError
 
 UNIT_PREFIX = "unidade:"
+ROLE_PREFIX = "papel:"
+ROLES = ("farmaceutico", "medico", "admin")
+
+# permissão -> papéis que a têm
+PERMISSOES: dict[str, frozenset[str]] = {
+    # atendimentos com dados do paciente (nome, CPF, queixa), só da própria unidade
+    "ver_atendimentos": frozenset({"farmaceutico"}),
+    # indicadores agregados, sem dado que identifique paciente
+    "ver_indicadores": frozenset({"farmaceutico", "admin"}),
+    "criar_triagem": frozenset({"farmaceutico"}),
+    # desfecho e Red Flag; além do papel, só quem registrou o atendimento (repositorio.update_visit)
+    "alterar_atendimento": frozenset({"farmaceutico"}),
+    "sincronizar_rnds": frozenset({"farmaceutico"}),
+    # indicadores de qualquer farmácia (gestão do Sincofarma)
+    "ver_todas_unidades": frozenset({"admin"}),
+    # encaminhamentos: o médico recebe os que forem endereçados a ele (rotas ainda não existem)
+    "ver_encaminhamentos": frozenset({"farmaceutico", "medico"}),
+}
+
+# papéis que só fazem sentido dentro de uma farmácia
+_PAPEIS_DE_UNIDADE = frozenset({"farmaceutico"})
 
 
 @dataclass(frozen=True)
 class Caller:
     sub: str
     username: str
-    unit_id: str
+    unit_id: str | None
+    roles: frozenset[str]
     groups: tuple[str, ...]
+
+    def pode(self, permissao: str) -> bool:
+        return bool(self.roles & PERMISSOES[permissao])
+
+    def exigir(self, permissao: str) -> None:
+        if not self.pode(permissao):
+            raise HttpError(403, "Seu perfil não tem acesso a esta função.")
 
 
 def _parse_groups(raw) -> list[str]:
@@ -38,13 +72,20 @@ def caller_from_event(event: dict) -> Caller:
         raise HttpError(401, "Use o token de acesso.")
 
     groups = _parse_groups(claims.get("cognito:groups"))
+    roles = frozenset(g[len(ROLE_PREFIX):] for g in groups if g.startswith(ROLE_PREFIX)) & frozenset(ROLES)
+    if not roles:
+        raise HttpError(403, "Usuário sem perfil de acesso. Procure o administrador.")
+
     units = [g[len(UNIT_PREFIX):] for g in groups if g.startswith(UNIT_PREFIX)]
-    if len(units) != 1:
+    if len(units) > 1:
+        raise HttpError(403, "Usuário vinculado a mais de uma unidade. Procure o administrador.")
+    if not units and roles & _PAPEIS_DE_UNIDADE:
         raise HttpError(403, "Usuário sem unidade vinculada. Procure o administrador.")
 
     return Caller(
         sub=str(claims.get("sub", "")),
         username=str(claims.get("username", "")),
-        unit_id=units[0],
+        unit_id=units[0] if units else None,
+        roles=roles,
         groups=tuple(groups),
     )

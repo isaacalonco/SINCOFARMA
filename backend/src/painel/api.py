@@ -1,5 +1,7 @@
 """Handlers das rotas da API do painel (uma função Lambda por rota, permissões mínimas)."""
 
+import re
+
 from .comum import repositorio as repo
 from .comum import tempo
 from .comum.auth import caller_from_event
@@ -7,6 +9,7 @@ from .comum.http import HttpError, handler, parse_json
 from .comum.validacao import validar_atualizacao, validar_criacao
 
 HISTORY_DAYS = 28
+UNIT_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 
 
 def _count(visits: list[dict]) -> dict[str, int]:
@@ -17,31 +20,59 @@ def _count(visits: list[dict]) -> dict[str, int]:
     return out
 
 
+def _unidade_do_painel(event, caller) -> str:
+    """Unidade do dashboard: a do usuário, ou `?unidade=` para quem vê todas as farmácias."""
+    pedida = ((event.get("queryStringParameters") or {}).get("unidade") or "").strip()
+    if pedida and pedida != caller.unit_id:
+        caller.exigir("ver_todas_unidades")
+        if not UNIT_ID.fullmatch(pedida):
+            raise HttpError(400, "Unidade inválida.")
+        if not repo.unit_profile(pedida)["exists"]:
+            raise HttpError(404, "Unidade não encontrada.")
+        return pedida
+    if not caller.unit_id:
+        raise HttpError(400, "Informe a unidade (?unidade=<id>).")
+    return caller.unit_id
+
+
 @handler
 def dashboard(event, _context):
-    """GET /dashboard: atendimentos de hoje + agregados no formato que o front usa."""
+    """GET /dashboard: atendimentos de hoje + agregados no formato que o front usa.
+
+    Quem não pode ver dados de paciente (ou olha outra farmácia) recebe só os agregados:
+    `visits` vazio e o resumo de hoje em `todaySummary`.
+    """
     caller = caller_from_event(event)
+    caller.exigir("ver_indicadores")
+    unit = _unidade_do_painel(event, caller)
+    com_pacientes = caller.pode("ver_atendimentos") and unit == caller.unit_id
     now = tempo.now()
     today = tempo.day_key(now)
     month = tempo.month_key(now)
 
-    profile = repo.unit_profile(caller.unit_id)
-    visits = repo.visits_of_day(caller.unit_id, today)
+    profile = repo.unit_profile(unit)
+    visits = repo.visits_of_day(unit, today, caller.sub)
 
     week_days = [d.isoformat() for d in tempo.week_days(now)]
     history_days = [d.isoformat() for d in tempo.previous_days(now, HISTORY_DAYS)]
-    stats = repo.stats_items(caller.unit_id, week_days + history_days, [month])
-    day_total = lambda d: int(stats.get(repo.pk_day(caller.unit_id, d), {}).get("total", 0))  # noqa: E731
+    stats = repo.stats_items(unit, week_days + history_days, [month])
+    day_total = lambda d: int(stats.get(repo.pk_day(unit, d), {}).get("total", 0))  # noqa: E731
 
-    month_stats = stats.get(repo.pk_month(caller.unit_id, month), {})
+    month_stats = stats.get(repo.pk_month(unit, month), {})
     dur_count = int(month_stats.get("durCount", 0))
     today_counts = _count(visits)
     history_total = sum(day_total(d) for d in history_days)
+    today_summary = {"total": len(visits), **today_counts, "urgent": sum(1 for v in visits if v["urgent"])}
+    if not com_pacientes:
+        visits = []
+    # descontado por computeStats: só o que veio em `visits`
+    seed_counts = _count(visits)
 
     # `baseline` segue o contrato de computeStats (src/data/stats.js):
     # os totais do mês já incluem os atendimentos devolvidos em `visits`.
     return 200, {
         "visits": visits,
+        "todaySummary": today_summary,
         "lastSync": None,
         "rndsPending": 0,
         "unit": profile["name"],
@@ -54,7 +85,7 @@ def dashboard(event, _context):
             "triageMinutes": max(1, round(int(month_stats.get("durSum", 0)) / dur_count / 60)) if dur_count else 0,
             "triageGoal": f"< {profile['triageGoalMin']} min",
             "monthGoal": profile["monthGoal"],
-            "seedCounts": today_counts,
+            "seedCounts": seed_counts,
             "seedCount": len(visits),
         },
     }
@@ -64,6 +95,7 @@ def dashboard(event, _context):
 def criar_visita(event, _context):
     """POST /visits: valida, emite protocolo e grava resumo + registro clínico + auditoria."""
     caller = caller_from_event(event)
+    caller.exigir("criar_triagem")
     summary, clinical, duration = validar_criacao(parse_json(event))
     visit = repo.create_visit(caller, summary, clinical, duration)
     return 201, visit
@@ -71,8 +103,9 @@ def criar_visita(event, _context):
 
 @handler
 def atualizar_visita(event, _context):
-    """PATCH /visits/{id}: troca desfecho e/ou Red Flag, com auditoria."""
+    """PATCH /visits/{id}: troca desfecho e/ou Red Flag, com auditoria (só quem registrou)."""
     caller = caller_from_event(event)
+    caller.exigir("alterar_atendimento")
     visit_id = (event.get("pathParameters") or {}).get("id", "")
     patch = validar_atualizacao(visit_id, parse_json(event))
     return 200, repo.update_visit(caller, visit_id, patch)
@@ -81,5 +114,5 @@ def atualizar_visita(event, _context):
 @handler
 def sincronizar_rnds(event, _context):
     """POST /rnds/sync: integração ainda não existe; responde com honestidade."""
-    caller_from_event(event)
+    caller_from_event(event).exigir("sincronizar_rnds")
     raise HttpError(501, "A integração com a RNDS ainda não está configurada.")

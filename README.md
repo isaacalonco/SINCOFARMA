@@ -72,8 +72,20 @@ de verdade, rode o backend simulado na sua máquina (não precisa de conta AWS):
    VITE_COGNITO_ENDPOINT=http://localhost:3001/
    ```
 
-4. Entre com o CPF `52998224725` e a senha temporária `Temporaria#2026`. O painel pede uma senha nova e
-   depois mostra o QR code do MFA: no servidor local **qualquer código de 6 dígitos** é aceito.
+4. Entre com a senha temporária `Temporaria#2026` e um destes CPFs, conforme o perfil que quer testar:
+
+   | Perfil | CPF | O que vê |
+   |---|---|---|
+   | Farmacêutico (unidade Asa Sul) | `52998224725` | painel, atendimentos, nova triagem, encaminhamentos |
+   | Administração Sincofarma | `11144477735` | farmácias e relatórios, sem dados de paciente |
+   | Médico | `39053344705` | encaminhamentos |
+
+   O painel pede uma senha nova e depois mostra o QR code do MFA: no servidor local **qualquer código de
+   6 dígitos** é aceito.
+
+Cada tela tem uma permissão em [`src/services/permissoes.js`](src/services/permissoes.js), espelho da tabela
+do backend (veja "Papéis e permissões" em [`backend/README.md`](backend/README.md)). Página nova? Registre a
+rota lá, e use `pode(user, "<permissão>")` para esconder botões que o perfil não pode usar.
 
 Os dados ficam só na memória do servidor e somem quando ele para. Reiniciou o servidor? Atualize o
 `CLIENT_ID` no `.env.local` e reinicie o `npm run dev`.

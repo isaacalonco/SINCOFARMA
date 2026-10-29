@@ -17,6 +17,7 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qsl, urlsplit
 
 REGION = "sa-east-1"
 os.environ.update({
@@ -33,7 +34,12 @@ import boto3  # noqa: E402
 from botocore.exceptions import ClientError  # noqa: E402
 from moto import mock_aws  # noqa: E402
 
-USUARIO = {"cpf": "52998224725", "crf": "4192", "nome": "Dra. Ana Souza", "senha_temporaria": "Temporaria#2026"}
+SENHA_TEMPORARIA = "Temporaria#2026"
+USUARIOS = [
+    {"papel": "farmacêutico", "cpf": "52998224725", "crf": "4192", "nome": "Dra. Ana Souza", "grupos": ["unidade:asa-sul", "papel:farmaceutico"]},
+    {"papel": "administrador", "cpf": "11144477735", "nome": "Gestor Sincofarma", "grupos": ["papel:admin"]},
+    {"papel": "médico", "cpf": "39053344705", "nome": "Dr. Paulo Lima", "grupos": ["papel:medico"]},
+]
 
 
 def preparar():
@@ -62,15 +68,22 @@ def preparar():
     )["UserPoolClient"]["ClientId"]
     # MFA obrigatório por app autenticador, como no template (o moto aceita qualquer código de 6 dígitos)
     idp.set_user_pool_mfa_config(UserPoolId=pool, SoftwareTokenMfaConfiguration={"Enabled": True}, MfaConfiguration="ON")
-    idp.create_group(UserPoolId=pool, GroupName="unidade:asa-sul")
-    idp.admin_create_user(
-        UserPoolId=pool,
-        Username=USUARIO["cpf"],
-        TemporaryPassword=USUARIO["senha_temporaria"],
-        UserAttributes=[{"Name": "name", "Value": USUARIO["nome"]}, {"Name": "custom:crf", "Value": USUARIO["crf"]}],
-        MessageAction="SUPPRESS",
-    )
-    idp.admin_add_user_to_group(UserPoolId=pool, Username=USUARIO["cpf"], GroupName="unidade:asa-sul")
+    for group in ("unidade:asa-sul", "papel:farmaceutico", "papel:medico", "papel:admin"):
+        idp.create_group(UserPoolId=pool, GroupName=group)
+    # um usuário por papel, todos com a mesma senha temporária
+    for user in USUARIOS:
+        attrs = [{"Name": "name", "Value": user["nome"]}]
+        if user.get("crf"):
+            attrs.append({"Name": "custom:crf", "Value": user["crf"]})
+        idp.admin_create_user(
+            UserPoolId=pool,
+            Username=user["cpf"],
+            TemporaryPassword=SENHA_TEMPORARIA,
+            UserAttributes=attrs,
+            MessageAction="SUPPRESS",
+        )
+        for group in user["grupos"]:
+            idp.admin_add_user_to_group(UserPoolId=pool, Username=user["cpf"], GroupName=group)
     os.environ["USER_POOL_ID"] = pool
     return idp, pool, client
 
@@ -161,6 +174,7 @@ def main() -> int:
                     "body": self._body() or None,
                     "isBase64Encoded": False,
                     "pathParameters": {"id": parts[1]} if len(parts) > 1 else {},
+                    "queryStringParameters": dict(parse_qsl(urlsplit(self.path).query)) or None,
                     "requestContext": {"http": {"method": method}, "authorizer": {"jwt": {"claims": claims}}},
                 }
                 result = fn(event, None)
@@ -181,7 +195,8 @@ def main() -> int:
         if args.arquivo_client_id:
             Path(args.arquivo_client_id).write_text(client_id, encoding="utf-8")
         print(f"CLIENT_ID={client_id}", flush=True)
-        print(f"Usuário: CPF {USUARIO['cpf']} / senha temporária {USUARIO['senha_temporaria']}", flush=True)
+        for user in USUARIOS:
+            print(f"Usuário {user['papel']}: CPF {user['cpf']} / senha temporária {SENHA_TEMPORARIA}", flush=True)
         print(f"Ouvindo em http://localhost:{args.porta}", flush=True)
         ThreadingHTTPServer(("127.0.0.1", args.porta), Handler).serve_forever()
     return 0

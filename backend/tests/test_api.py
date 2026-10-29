@@ -21,12 +21,12 @@ def painel_items():
 # ---------------------------------------------------------------- autorização
 
 def test_sem_unidade_recusa(aws):
-    resp = aws.dashboard(event(groups="[farmaceutico]"), None)
+    resp = aws.dashboard(event(groups="[papel:farmaceutico]"), None)
     assert resp["statusCode"] == 403
 
 
 def test_duas_unidades_recusa(aws):
-    resp = aws.dashboard(event(groups="[unidade:asa-sul unidade:taguatinga]"), None)
+    resp = aws.dashboard(event(groups="[unidade:asa-sul unidade:taguatinga papel:farmaceutico]"), None)
     assert resp["statusCode"] == 403
 
 
@@ -143,7 +143,7 @@ def test_sem_medicao_tempo_zero(aws):
 
 def test_dashboard_isolado_por_unidade(aws):
     post_visit(aws)
-    other = body_of(aws.dashboard(event(groups="[unidade:taguatinga]"), None))
+    other = body_of(aws.dashboard(event(groups="[unidade:taguatinga papel:farmaceutico]"), None))
     assert other["visits"] == []
     assert other["baseline"]["outcomes"] == {"done": 0, "referred": 0, "progress": 0}
 
@@ -167,7 +167,7 @@ def test_troca_desfecho_ajusta_contadores(aws):
 
 def test_patch_de_outra_unidade_nao_encontra(aws):
     visit = body_of(post_visit(aws))
-    assert patch(aws, visit["id"], {"status": "done"}, groups="[unidade:taguatinga]")["statusCode"] == 404
+    assert patch(aws, visit["id"], {"status": "done"}, groups="[unidade:taguatinga papel:farmaceutico]")["statusCode"] == 404
 
 
 def test_patch_campos_nao_permitidos(aws):

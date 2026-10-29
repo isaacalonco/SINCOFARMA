@@ -18,6 +18,7 @@ import { EASE, SPRING } from "../utils/motion";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import MotionToggle from "./MotionToggle";
 import { isReady } from "../config/app";
+import { PAPEIS, podeRota } from "../services/permissoes";
 
 const MOBILE = "(max-width: 1024px)";
 
@@ -42,7 +43,7 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
   // fechada no mobile, sai do tab order e dos leitores de tela
   const inert = mobile && !open;
 
-  const sections = [
+  const allSections = [
     {
       title: "PRINCIPAL",
       items: [
@@ -66,6 +67,11 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
       ],
     },
   ];
+
+  // só as telas do perfil de quem está logado; seção vazia some
+  const sections = allSections
+    .map((s) => ({ ...s, items: s.items.filter((item) => podeRota(user, item.to)) }))
+    .filter((s) => s.items.length);
 
   // índice contínuo para a cascata de entrada
   const offsets = sections.map((_, i) =>
@@ -167,7 +173,7 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
           <span className="sb-avatar">{initials(user?.name) || "RT"}</span>
           <div className="sb-user-info">
             <strong>{user?.name ?? "Farmacêutico RT"}</strong>
-            <small>{user?.crf ?? "CRF-DF · RT"}</small>
+            <small>{user?.crf ?? (user?.roles ?? []).map((r) => PAPEIS[r]).filter(Boolean).join(" · ")}</small>
           </div>
           <MotionToggle className="sb-motion" />
           <motion.button

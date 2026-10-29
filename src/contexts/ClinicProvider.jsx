@@ -3,6 +3,8 @@ import { ClinicContext, SearchContext, ToastContext } from "./clinic";
 import { repository } from "../data";
 import { computeStats } from "../data/stats";
 import { useOnline } from "../hooks/useOnline";
+import { useAuth } from "./auth";
+import { pode } from "../services/permissoes";
 
 const EMPTY = {
   visits: [],
@@ -30,6 +32,8 @@ export function ClinicProvider({ children }) {
   const [selectedId, setSelectedId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const online = useOnline();
+  const { user } = useAuth();
+  const canLoad = pode(user, "ver_atendimentos") && !!user?.unit;
   const toastId = useRef(0);
   const timers = useRef(new Set());
   const alive = useRef(true);
@@ -64,8 +68,10 @@ export function ClinicProvider({ children }) {
 
   /* ---------- carga inicial / recarga ---------- */
   const fetchDashboard = useCallback(() => {
+    // perfil sem painel da unidade (médico, administração): nada a carregar, o servidor recusaria
+    const load = canLoad ? repository.loadDashboard() : Promise.resolve({});
     // estados só mudam quando a promessa resolve (nada síncrono dentro do efeito)
-    return repository.loadDashboard().then(
+    return load.then(
       (result) => {
         if (!alive.current) return;
         setData({ ...EMPTY, ...result });
@@ -77,7 +83,7 @@ export function ClinicProvider({ children }) {
         setStatus("error");
       }
     );
-  }, []);
+  }, [canLoad]);
 
   useEffect(() => {
     fetchDashboard();
