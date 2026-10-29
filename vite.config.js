@@ -6,6 +6,9 @@ const PKG = /node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // buffer@4 (dependência do amazon-cognito-identity-js) usa o `global` do Node,
+  // que não existe no navegador: sem isso a tela fica branca
+  define: { global: 'globalThis' },
   // o backend (Python, com .venv de milhares de arquivos) não faz parte do front
   server: {
     watch: { ignored: ['**/backend/**'] },
