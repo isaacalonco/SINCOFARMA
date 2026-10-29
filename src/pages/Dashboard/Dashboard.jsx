@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useDeferredMount } from "../../hooks/useDeferredMount";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Check, Stethoscope, TriangleAlert } from "lucide-react";
+import { RefreshCw, Check, Stethoscope, TriangleAlert, Store, EyeOff } from "lucide-react";
+import { pode } from "../../services/permissoes";
 import { useAuth } from "../../contexts/auth";
 import { useClinic } from "../../contexts/clinic";
 import KpiCards from "./components/KpiCards";
@@ -28,7 +29,8 @@ function formatSync(iso) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { stats, syncRnds, syncing, lastSync, rndsPending, unit, historicAverage, status, loadError, reload } = useClinic();
+  const { stats, syncRnds, syncing, lastSync, rndsPending, unit, units, viewUnit, chooseUnit, patientDataHidden, historicAverage, status, loadError, reload } = useClinic();
+  const seesAllUnits = pode(user, "ver_todas_unidades");
   const [justSynced, setJustSynced] = useState(false);
   // gráficos e tabela montam um quadro depois dos KPIs: a troca de página
   // fica leve e a parte de cima aparece de imediato
@@ -73,10 +75,23 @@ export default function Dashboard() {
               </>
             )}
           </motion.p>
-          <motion.p className="unit" {...rise(3)}>{unit}</motion.p>
+          {seesAllUnits && units.length > 0 ? (
+            <motion.label className="unit-select" {...rise(3)}>
+              <Store size={15} aria-hidden="true" />
+              <span className="sr-only">Farmácia</span>
+              <select value={viewUnit ?? ""} onChange={(e) => chooseUnit(e.target.value)}>
+                {units.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </motion.label>
+          ) : (
+            <motion.p className="unit" {...rise(3)}>{unit}</motion.p>
+          )}
         </div>
 
         <motion.div className="page-actions" {...rise(2)}>
+          {pode(user, "sincronizar_rnds") && (
           <div className="sync-wrap">
             <motion.button
               className={`btn btn--ghost sync-${syncState}`}
@@ -108,11 +123,14 @@ export default function Dashboard() {
             </motion.button>
             <small className="sync-meta">{formatSync(lastSync)}</small>
           </div>
-          <MotionLink to="/nova-triagem" className="btn btn--primary" {...press}>
-            <span className="btn-shine" aria-hidden="true" />
-            <Stethoscope size={16} />
-            + Nova Triagem
-          </MotionLink>
+          )}
+          {pode(user, "criar_triagem") && (
+            <MotionLink to="/nova-triagem" className="btn btn--primary" {...press}>
+              <span className="btn-shine" aria-hidden="true" />
+              <Stethoscope size={16} />
+              + Nova Triagem
+            </MotionLink>
+          )}
         </motion.div>
       </section>
 
@@ -133,7 +151,25 @@ export default function Dashboard() {
         </div>
       )}
 
-      {showTable && <VisitsTable limit={5} showViewAll />}
+      {seesAllUnits && status === "ready" && units.length === 0 && (
+        <div className="data-hidden" role="note">
+          <Store size={18} aria-hidden="true" />
+          <span>Nenhuma farmácia cadastrada ainda.</span>
+        </div>
+      )}
+
+      {showTable &&
+        (patientDataHidden ? (
+          <div className="data-hidden" role="note">
+            <EyeOff size={18} aria-hidden="true" />
+            <span>
+              <b>Dados de pacientes ocultos para este perfil.</b> A administração vê só os números da
+              farmácia; nomes, CPF e queixas ficam com os farmacêuticos da unidade (LGPD).
+            </span>
+          </div>
+        ) : (
+          <VisitsTable limit={5} showViewAll />
+        ))}
     </main>
   );
 }

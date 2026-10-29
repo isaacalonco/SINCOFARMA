@@ -92,6 +92,13 @@ def dashboard(event, _context):
 
 
 @handler
+def listar_unidades(event, _context):
+    """GET /unidades: farmácias para a administração escolher no painel (só id e nome)."""
+    caller_from_event(event).exigir("ver_todas_unidades")
+    return 200, {"units": repo.list_units()}
+
+
+@handler
 def criar_visita(event, _context):
     """POST /visits: valida, emite protocolo e grava resumo + registro clínico + auditoria."""
     caller = caller_from_event(event)

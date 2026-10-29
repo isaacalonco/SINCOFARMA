@@ -16,10 +16,11 @@ import json
 import logging
 import os
 import secrets
+import unicodedata
 from datetime import datetime
 
 import boto3
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 
 from . import tempo
 from .http import HttpError
@@ -70,6 +71,31 @@ def unit_profile(unit: str) -> dict:
         "monthGoal": int(item.get("monthGoal") or 0),
         "triageGoalMin": int(item.get("triageGoalMin") or 10),
     }
+
+
+def _sem_acento(text: str) -> str:
+    """Chave de ordenação: "Águas Claras" antes de "Brazlândia"."""
+    return "".join(c for c in unicodedata.normalize("NFD", text.lower()) if not unicodedata.combining(c))
+
+
+def list_units() -> list[dict]:
+    """Todas as farmácias cadastradas (id e nome), em ordem alfabética.
+
+    Varre a tabela filtrando os perfis: barato com poucas unidades; com centenas
+    delas, vale um item-índice próprio.
+    """
+    kwargs = {
+        "FilterExpression": Attr("SK").eq("PROFILE"),
+        "ProjectionExpression": "PK, #n",
+        "ExpressionAttributeNames": {"#n": "name"},
+    }
+    units = []
+    while True:
+        resp = _painel().scan(**kwargs)
+        units += [{"id": i["PK"].removeprefix("UNIT#"), "name": i.get("name") or i["PK"]} for i in resp.get("Items", [])]
+        if "LastEvaluatedKey" not in resp:
+            return sorted(units, key=lambda u: _sem_acento(u["name"]))
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
 
 def visits_of_day(unit: str, day: str, viewer_sub: str, limit: int = 300) -> list[dict]:

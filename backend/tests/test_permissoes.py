@@ -97,3 +97,23 @@ def test_farmaceutico_so_altera_o_que_registrou(aws):
     resp = patch(aws, visit["id"], {"status": "done"}, **OUTRO_FARMACEUTICO)
     assert resp["statusCode"] == 403
     assert patch(aws, visit["id"], {"status": "done"})["statusCode"] == 200
+
+
+# ---------------------------------------------------------------- lista de farmácias
+
+def test_admin_lista_unidades_sem_dados_de_paciente(aws):
+    post_visit(aws)
+    boto3.resource("dynamodb", region_name=REGION).Table("painel-test").put_item(
+        Item={"PK": "UNIT#aguas-claras", "SK": "PROFILE", "name": "Águas Claras"}
+    )
+    resp = aws.listar_unidades(event(path="/unidades", groups=ADMIN), None)
+    assert resp["statusCode"] == 200
+    assert body_of(resp)["units"] == [
+        {"id": "aguas-claras", "name": "Águas Claras"},
+        {"id": "asa-sul", "name": "Drogaria Planalto — Asa Sul"},
+    ]
+
+
+def test_so_admin_lista_unidades(aws):
+    assert aws.listar_unidades(event(path="/unidades"), None)["statusCode"] == 403
+    assert aws.listar_unidades(event(path="/unidades", groups=MEDICO), None)["statusCode"] == 403

@@ -5,15 +5,8 @@ import { ClinicProvider } from "./contexts/ClinicProvider";
 import { useAuth } from "./contexts/auth";
 import RouteFallback from "./components/RouteFallback";
 import { podeRota, rotaInicial } from "./services/permissoes";
+import { appPages, loaders } from "./pages/loaders";
 
-// cada página vira um chunk separado: o login não baixa o código do painel
-const loaders = {
-  Login: () => import("./pages/Login/Login"),
-  Dashboard: () => import("./pages/Dashboard/Dashboard"),
-  NovaTriagem: () => import("./pages/NovaTriagem/NovaTriagem"),
-  EmBreve: () => import("./pages/EmBreve/EmBreve"),
-  SemAcesso: () => import("./pages/SemAcesso/SemAcesso"),
-};
 const Login = lazy(loaders.Login);
 const Dashboard = lazy(loaders.Dashboard);
 const NovaTriagem = lazy(loaders.NovaTriagem);
@@ -26,7 +19,7 @@ function usePreloadPages(enabled) {
   useEffect(() => {
     if (!enabled) return;
     // só as páginas internas (o login já não é necessário)
-    const run = () => [loaders.Dashboard, loaders.NovaTriagem, loaders.EmBreve].forEach((load) => load());
+    const run = () => appPages.forEach((load) => load());
     const idle = window.requestIdleCallback ?? ((cb) => setTimeout(cb, 1500));
     const handle = idle(run);
     return () => (window.cancelIdleCallback ?? clearTimeout)(handle);

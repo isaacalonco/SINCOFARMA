@@ -118,6 +118,7 @@ def main() -> int:
             ("POST", "visits"): api.criar_visita,
             ("PATCH", "visits"): api.atualizar_visita,
             ("POST", "rnds"): api.sincronizar_rnds,
+            ("GET", "unidades"): api.listar_unidades,
         }
         cognito_ops = {
             "InitiateAuth": idp.initiate_auth,

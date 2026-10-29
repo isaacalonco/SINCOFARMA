@@ -14,6 +14,7 @@ const EMPTY = {
   week: [0, 0, 0, 0, 0, 0, 0],
   historicAverage: 0,
   unit: "",
+  todaySummary: null,
 };
 
 const friendly = (err, fallback) => (err?.message && err.message !== "Failed to fetch" ? err.message : fallback);
@@ -33,7 +34,15 @@ export function ClinicProvider({ children }) {
   const [syncing, setSyncing] = useState(false);
   const online = useOnline();
   const { user } = useAuth();
-  const canLoad = pode(user, "ver_atendimentos") && !!user?.unit;
+  const ownUnit = pode(user, "ver_atendimentos") && user?.unit ? user.unit : null;
+  const seesAllUnits = pode(user, "ver_todas_unidades");
+  // administração: lista de farmácias (null = ainda carregando) e a escolhida no painel
+  const [units, setUnits] = useState(seesAllUnits ? null : []);
+  const [chosenUnit, setChosenUnit] = useState(null);
+  const viewUnit = chosenUnit ?? ownUnit;
+  // fora da própria farmácia (ou sem papel que veja pacientes) o servidor manda só números
+  const patientDataHidden = !ownUnit || viewUnit !== ownUnit;
+  const canLoad = !!viewUnit;
   const toastId = useRef(0);
   const timers = useRef(new Set());
   const alive = useRef(true);
@@ -68,8 +77,8 @@ export function ClinicProvider({ children }) {
 
   /* ---------- carga inicial / recarga ---------- */
   const fetchDashboard = useCallback(() => {
-    // perfil sem painel da unidade (médico, administração): nada a carregar, o servidor recusaria
-    const load = canLoad ? repository.loadDashboard() : Promise.resolve({});
+    // sem farmácia para mostrar (médico; administração antes de escolher): nada a carregar
+    const load = canLoad ? repository.loadDashboard(viewUnit === ownUnit ? undefined : viewUnit) : Promise.resolve({});
     // estados só mudam quando a promessa resolve (nada síncrono dentro do efeito)
     return load.then(
       (result) => {
@@ -83,11 +92,37 @@ export function ClinicProvider({ children }) {
         setStatus("error");
       }
     );
-  }, [canLoad]);
+  }, [canLoad, viewUnit, ownUnit]);
 
   useEffect(() => {
+    // administração: espera a lista de farmácias para saber qual mostrar
+    if (units === null) return;
     fetchDashboard();
-  }, [fetchDashboard]);
+  }, [fetchDashboard, units]);
+
+  // administração: carrega as farmácias e abre a primeira (quem também é farmacêutico abre a sua)
+  useEffect(() => {
+    if (!seesAllUnits) return;
+    repository.listUnits().then(
+      (list) => {
+        if (!alive.current) return;
+        setUnits(list);
+        if (!ownUnit && list.length) setChosenUnit((c) => c ?? list[0].id);
+      },
+      (err) => {
+        if (!alive.current) return;
+        setUnits([]);
+        setLoadError(friendly(err, "Não foi possível carregar as farmácias."));
+        setStatus("error");
+      }
+    );
+  }, [seesAllUnits, ownUnit]);
+
+  const chooseUnit = useCallback((id) => {
+    setStatus("loading");
+    setLoadError(null);
+    setChosenUnit(id);
+  }, []);
 
   const load = useCallback(() => {
     setStatus("loading");
@@ -174,10 +209,12 @@ export function ClinicProvider({ children }) {
   }, [notify]);
 
   /* ---------- derivados ---------- */
-  const stats = useMemo(
-    () => computeStats(data.visits, { baseline: data.baseline, week: data.week }),
-    [data.visits, data.baseline, data.week]
-  );
+  const stats = useMemo(() => {
+    const s = computeStats(data.visits, { baseline: data.baseline, week: data.week });
+    // sem a lista de pacientes, os números de hoje vêm prontos do servidor
+    const t = data.todaySummary;
+    return patientDataHidden && t ? { ...s, todayTotal: t.total, waiting: t.progress, urgentToday: t.urgent } : s;
+  }, [data.visits, data.baseline, data.week, data.todaySummary, patientDataHidden]);
 
   const openVisit = useCallback((id) => setSelectedId(id), []);
   const closeVisit = useCallback(() => setSelectedId(null), []);
@@ -192,6 +229,10 @@ export function ClinicProvider({ children }) {
       lastSync: data.lastSync,
       rndsPending: data.rndsPending,
       unit: data.unit,
+      units: units ?? [],
+      viewUnit,
+      chooseUnit,
+      patientDataHidden,
       historicAverage: data.historicAverage,
       stats,
       notify,
@@ -204,7 +245,7 @@ export function ClinicProvider({ children }) {
       openVisit,
       closeVisit,
     }),
-    [status, loadError, load, online, data, stats, notify, addVisit, updateVisit, syncRnds, syncing, resetDemo, selectedId, openVisit, closeVisit]
+    [status, loadError, load, online, data, units, viewUnit, chooseUnit, patientDataHidden, stats, notify, addVisit, updateVisit, syncRnds, syncing, resetDemo, selectedId, openVisit, closeVisit]
   );
   const search = useMemo(() => ({ query, setQuery }), [query]);
   const toastValue = useMemo(() => ({ toasts, dismissToast }), [toasts, dismissToast]);

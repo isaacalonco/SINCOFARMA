@@ -36,19 +36,22 @@ export function podeAlterar(user, visit) {
   return pode(user, "alterar_atendimento") && visit?.mine !== false;
 }
 
-// rota -> quem entra. O painel da unidade exige estar numa unidade.
+// página -> papéis que a abrem (definido com a coordenação do projeto).
+// Abrir a página não libera os dados: a administração vê o Dashboard só com
+// números, sem paciente, e a Nova Triagem sem poder registrar.
+// A ordem decide a tela inicial de cada perfil.
 const ROTAS = {
-  "/dashboard": (u) => pode(u, "ver_atendimentos") && !!u.unit,
-  "/atendimentos": (u) => pode(u, "ver_atendimentos") && !!u.unit,
-  "/nova-triagem": (u) => pode(u, "criar_triagem") && !!u.unit,
-  "/encaminhamentos": (u) => pode(u, "ver_encaminhamentos"),
-  "/farmacias": (u) => pode(u, "ver_todas_unidades"),
-  "/relatorios": (u) => pode(u, "ver_indicadores"),
+  "/dashboard": ["admin"],
+  "/atendimentos": ["farmaceutico", "admin"],
+  "/nova-triagem": ["farmaceutico", "admin"],
+  "/encaminhamentos": ["farmaceutico", "medico", "admin"],
+  "/farmacias": ["admin"],
+  "/relatorios": ["admin"],
 };
 
 export function podeRota(user, path) {
-  const regra = ROTAS[path];
-  return !!user && !!regra && regra(user);
+  const papeis = ROTAS[path];
+  return !!papeis && (user?.roles ?? []).some((r) => papeis.includes(r));
 }
 
 /** Primeira tela que o usuário pode abrir (destino depois do login). */

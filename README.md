@@ -76,8 +76,8 @@ de verdade, rode o backend simulado na sua máquina (não precisa de conta AWS):
 
    | Perfil | CPF | O que vê |
    |---|---|---|
-   | Farmacêutico (unidade Asa Sul) | `52998224725` | painel, atendimentos, nova triagem, encaminhamentos |
-   | Administração Sincofarma | `11144477735` | farmácias e relatórios, sem dados de paciente |
+   | Farmacêutico (unidade Asa Sul) | `52998224725` | atendimentos, nova triagem, encaminhamentos |
+   | Administração Sincofarma | `11144477735` | todas as páginas, só números (sem dados de paciente, sem registrar triagem) |
    | Médico | `39053344705` | encaminhamentos |
 
    O painel pede uma senha nova e depois mostra o QR code do MFA: no servidor local **qualquer código de

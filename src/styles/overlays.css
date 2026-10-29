@@ -703,3 +703,68 @@ button.legend-link:focus-visible { outline: 2px solid var(--blue-500); outline-o
 }
 .field:disabled .seg,
 .flag-toggle:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ---------- tela de entrada (logo depois do login) ---------- */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f4f8fc;
+  overflow: hidden;
+}
+.intro-bg { position: absolute; inset: 0; pointer-events: none; }
+.intro-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(10px);
+}
+.intro-glow--a {
+  top: -22vmax;
+  left: 50%;
+  width: 70vmax;
+  height: 70vmax;
+  margin-left: -35vmax;
+  background: radial-gradient(closest-side, rgba(58, 160, 232, 0.28), transparent 70%);
+}
+.intro-glow--b {
+  bottom: -30vmax;
+  right: -20vmax;
+  width: 60vmax;
+  height: 60vmax;
+  background: radial-gradient(closest-side, rgba(53, 209, 154, 0.2), transparent 70%);
+}
+.intro-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(420px, 100%);
+  text-align: center;
+}
+.intro-logo { width: min(300px, 72vw); height: auto; margin-bottom: 28px; }
+.intro-hello { margin: 0; font-size: 22px; font-weight: 700; color: var(--blue-900); }
+.intro-role { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+.intro-role b { color: var(--blue-700); font-weight: 600; }
+.intro-progress {
+  width: min(260px, 70vw);
+  height: 4px;
+  margin-top: 28px;
+  border-radius: 999px;
+  background: rgba(0, 74, 128, 0.12);
+  overflow: hidden;
+}
+.intro-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3aa0e8, #004a80);
+  transform-origin: left center;
+}
+.intro-step {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}

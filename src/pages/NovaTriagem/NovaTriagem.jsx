@@ -17,6 +17,7 @@ import {
   RiscoSection,
   ObservacaoSection,
 } from "./sections";
+import { pode } from "../../services/permissoes";
 import "./NovaTriagem.css";
 
 /* Placeholder: o número real do protocolo deve vir do backend */
@@ -73,9 +74,12 @@ export default function NovaTriagem() {
   const pharmacist = user?.name ?? "Farmacêutico(a) responsável";
   const crf = user?.crf ? ` (${user.crf})` : "";
 
+  // administração abre a página para conhecer o fluxo, mas não registra
+  const canRegister = pode(user, "criar_triagem");
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (saving) return;
+    if (saving || !canRegister) return;
     setTried(true);
     const pending = firstPending(steps);
     if (pending) {
@@ -93,7 +97,7 @@ export default function NovaTriagem() {
       const { summary, clinical } = buildTriageRecord(form, { pharmacist, protocol: protocolo });
       const durationSec = Math.round((Date.now() - startedAt) / 1000);
       await addVisit({ ...summary, durationSec }, clinical);
-      navigate("/dashboard");
+      navigate("/"); // tela inicial do perfil
     } catch {
       // o provider já avisou o usuário; o formulário fica preenchido para tentar de novo
       setSaving(false);
@@ -140,14 +144,19 @@ export default function NovaTriagem() {
         <motion.button
           type="button"
           className="tg-btn tg-btn--ghost"
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate("/")}
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.97 }}
           transition={SPRING}
         >
           Cancelar
         </motion.button>
-        <p>Responsável técnico: {pharmacist}{crf}</p>
+        {canRegister ? (
+          <p>Responsável técnico: {pharmacist}{crf}</p>
+        ) : (
+          <p role="note">Só farmacêuticos registram triagens. Este perfil vê o formulário sem enviar.</p>
+        )}
+        {canRegister && (
         <motion.button
           type="submit"
           className="tg-btn tg-btn--primary"
@@ -160,6 +169,7 @@ export default function NovaTriagem() {
           <span className="btn-shine" aria-hidden="true" />
           {saving ? "Registrando…" : "Continuar"}
         </motion.button>
+        )}
       </motion.footer>
     </form>
   );
