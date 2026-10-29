@@ -1,0 +1,33 @@
+/* ---------- Auditoria ---------- */
+.audit-note { background: #eef6f1; border-color: #c9e8d6; color: #0f5c40; }
+.audit-month input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--soft);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+}
+.audit-table td { vertical-align: top; }
+.audit-table td:first-child { white-space: nowrap; }
+.audit-table td:nth-child(2) { min-width: 150px; }
+.audit-who { display: block; font-size: 13.5px; color: var(--blue-900); }
+.audit-table small { display: block; font-size: 12px; }
+.audit-action {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #f1f2f4;
+  color: #374151;
+}
+.audit-action--atendimentos { background: #e4eefc; color: #1857b0; }
+.audit-action--encaminhamentos { background: #fef3c7; color: #92400e; }
+.audit-action--usuarios { background: #efebfd; color: #5636c4; }
+.audit-detail { font-size: 13px; color: var(--text); min-width: 220px; }

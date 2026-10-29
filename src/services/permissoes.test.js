@@ -23,28 +23,30 @@ describe("papéis a partir dos grupos do Cognito", () => {
 
 describe("o que cada perfil vê", () => {
   const paginas = (u) =>
-    ["/dashboard", "/atendimentos", "/nova-triagem", "/encaminhamentos", "/farmacias", "/relatorios"].filter((p) => podeRota(u, p));
+    ["/dashboard", "/atendimentos", "/nova-triagem", "/encaminhamentos", "/farmacias", "/relatorios", "/usuarios", "/auditoria", "/ficha", "/minha-conta"].filter((p) =>
+      podeRota(u, p)
+    );
 
   it("farmacêutico: operação da farmácia, começando pelo Dashboard", () => {
-    expect(paginas(farmaceutico)).toEqual(["/dashboard", "/atendimentos", "/nova-triagem", "/encaminhamentos"]);
+    expect(paginas(farmaceutico)).toEqual(["/dashboard", "/atendimentos", "/nova-triagem", "/encaminhamentos", "/ficha", "/minha-conta"]);
     expect(rotaInicial(farmaceutico)).toBe("/dashboard");
   });
 
   it("médico: só encaminhamentos, que são o painel dele", () => {
-    expect(paginas(medico)).toEqual(["/encaminhamentos"]);
+    expect(paginas(medico)).toEqual(["/encaminhamentos", "/minha-conta"]);
     expect(rotaInicial(medico)).toBe("/encaminhamentos");
     expect(pode(medico, "ver_atendimentos")).toBe(false);
   });
 
   it("administração: telas de gestão, sem listas de pacientes nem triagem", () => {
-    expect(paginas(admin)).toEqual(["/dashboard", "/farmacias", "/relatorios"]);
+    expect(paginas(admin)).toEqual(["/dashboard", "/farmacias", "/relatorios", "/usuarios", "/auditoria", "/minha-conta"]);
     expect(rotaInicial(admin)).toBe("/dashboard");
     expect(pode(admin, "ver_atendimentos")).toBe(false);
     expect(pode(admin, "criar_triagem")).toBe(false);
   });
 
   it("papéis somam", () => {
-    expect(paginas(rtAdmin)).toHaveLength(6);
+    expect(paginas(rtAdmin)).toHaveLength(10);
     expect(pode(rtAdmin, "criar_triagem")).toBe(true);
   });
 

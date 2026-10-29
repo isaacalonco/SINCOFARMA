@@ -25,6 +25,8 @@ const PERMISSOES = {
   criar_encaminhamento: ["farmaceutico"],
   // responde ou recusa os que recebeu
   responder_encaminhamento: ["medico"],
+  gerenciar_usuarios: ["admin"],
+  ver_auditoria: ["admin"],
 };
 
 /** O usuário tem a permissão? `user.roles` vem do login (grupos `papel:*`). */
@@ -53,6 +55,12 @@ const ROTAS = {
   "/encaminhamentos": ["farmaceutico", "medico"],
   "/farmacias": ["admin"],
   "/relatorios": ["admin"],
+  "/usuarios": ["admin"],
+  "/auditoria": ["admin"],
+  // ficha completa de um atendimento (/ficha/:id): só a farmácia dele
+  "/ficha": ["farmaceutico"],
+  // a própria conta: todo perfil (fica por último para nunca ser a tela inicial)
+  "/minha-conta": ["farmaceutico", "medico", "admin"],
 };
 
 export function podeRota(user, path) {

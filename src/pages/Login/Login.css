@@ -487,3 +487,15 @@ label.is-focused { color: var(--blue-500); }
   user-select: all;
   word-break: break-all;
 }
+
+/* "Esqueci a senha" */
+.recover .form-error { margin-top: 14px; }
+.recover-submit { margin-top: 18px; width: 100%; }
+.recover-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 13px;
+}

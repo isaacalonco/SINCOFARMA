@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import logo from "../assets/logo-sincofarma.webp";
+import logo from "../assets/logo-sincofarma.png";
 import { appPages } from "../pages/loaders";
 import { PAPEIS } from "../services/permissoes";
 import { EASE } from "../utils/motion";

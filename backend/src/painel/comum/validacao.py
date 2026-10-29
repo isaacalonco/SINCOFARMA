@@ -323,3 +323,71 @@ def validar_mudanca_encaminhamento(ref_id: str, body: dict) -> dict:
     response = _text(body, "response", erros, "response", required=status in ("answered", "declined"), min_len=2, max_len=2000)
     erros.raise_if_any()
     return {"status": status, "response": response}
+
+
+# ---------------------------------------------------------------- usuários (administração)
+
+ROLES = ("farmaceutico", "medico", "admin")
+EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+UNIT_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
+
+
+def _roles(value, erros: Erros) -> list[str] | None:
+    if not isinstance(value, list) or not value or any(r not in ROLES for r in value):
+        erros.add("roles", "Escolha ao menos um perfil: farmaceutico, medico ou admin.")
+        return None
+    return sorted(set(value))
+
+
+def _unit(value, erros: Erros) -> str | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str) or not UNIT_ID.match(value):
+        erros.add("unit", "Farmácia inválida.")
+        return None
+    return value
+
+
+def validar_usuario(body: dict) -> dict:
+    """POST /usuarios: CPF (login), nome, e-mail, perfis, farmácia e CRF quando farmacêutico."""
+    erros = Erros()
+    cpf = only_digits(body.get("cpf"))
+    if not is_valid_cpf(cpf):
+        erros.add("cpf", "CPF inválido.")
+    name = _text(body, "name", erros, "name", required=True, min_len=3, max_len=120)
+    email = _text(body, "email", erros, "email", required=True, max_len=200)
+    if email and not EMAIL.match(email):
+        erros.add("email", "E-mail inválido.")
+    roles = _roles(body.get("roles"), erros)
+    unit = _unit(body.get("unit"), erros)
+    crf = only_digits(body.get("crf"))
+    if roles and "farmaceutico" in roles:
+        if not unit:
+            erros.add("unit", "Farmacêutico precisa de uma farmácia.")
+        if not crf or len(crf) > 10:
+            erros.add("crf", "CRF obrigatório para farmacêutico (só números).")
+    erros.raise_if_any()
+    return {"cpf": cpf, "name": name, "email": email.lower(), "roles": roles, "unit": unit, "crf": crf or None}
+
+
+def validar_mudanca_usuario(body: dict) -> dict:
+    """PATCH /usuarios/{id}: perfis, farmácia, ativo, reset do MFA ou reenvio do convite."""
+    allowed = {"roles", "unit", "enabled", "resetMfa", "resendInvite"}
+    extra = set(body) - allowed
+    if extra:
+        raise HttpError(422, "Campos não permitidos.", {"fields": {k: "Não editável." for k in sorted(extra)}})
+    if not body:
+        raise HttpError(422, "Nada para atualizar.")
+    erros = Erros()
+    out: dict = {}
+    if "roles" in body:
+        out["roles"] = _roles(body["roles"], erros)
+    if "unit" in body:
+        out["unit"] = _unit(body["unit"], erros)
+    for flag in ("enabled", "resetMfa", "resendInvite"):
+        if flag in body:
+            if not isinstance(body[flag], bool):
+                erros.add(flag, "Deve ser verdadeiro ou falso.")
+            out[flag] = body[flag]
+    erros.raise_if_any()
+    return out

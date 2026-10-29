@@ -29,6 +29,10 @@ PERMISSOES: dict[str, frozenset[str]] = {
     "ver_encaminhamentos": frozenset({"farmaceutico", "medico"}),
     "criar_encaminhamento": frozenset({"farmaceutico"}),  # também cancela os da própria farmácia
     "responder_encaminhamento": frozenset({"medico"}),
+    # cadastrar pessoas, trocar perfil e farmácia, desativar, resetar MFA
+    "gerenciar_usuarios": frozenset({"admin"}),
+    # registro de auditoria geral (sem dados de paciente)
+    "ver_auditoria": frozenset({"admin"}),
 }
 
 # papéis que só fazem sentido dentro de uma farmácia

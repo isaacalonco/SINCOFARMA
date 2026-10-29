@@ -1,0 +1,95 @@
+/* ---------- Usuários (administração) ---------- */
+.user-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.user-stats > div {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.user-stats dt { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.user-stats dd { margin-top: 4px; font-size: 24px; font-weight: 700; color: var(--blue-900); font-variant-numeric: tabular-nums; }
+
+.user-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--muted);
+}
+.user-search input { border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--text); outline: 0; width: 180px; }
+.user-search:focus-within { border-color: var(--blue-500); background: #fff; }
+
+.users-table .patient small { color: var(--muted); }
+.users-table tr.is-off td { opacity: 0.55; }
+.user-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.user-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.user-status--on { color: #0b7a55; }
+.user-status--pending { color: #b45309; }
+.user-status--off { color: #6b7280; }
+.muted { color: var(--muted); }
+
+/* modal */
+.user-modal { width: min(620px, 100%); }
+.field--wide { grid-column: 1 / -1; }
+.field-error { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #b91c1c; }
+.field.has-error select { border-color: #f87171; background: #fff7f7; }
+
+.role-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.role-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--soft);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+/* o estilo geral de .field estica inputs; checkbox volta ao tamanho normal */
+.field .role-pick input { width: auto; min-height: 0; padding: 0; margin: 0; accent-color: var(--blue-700); }
+.role-pick.is-on { background: #fff; border-color: var(--blue-500); }
+.role-pick:has(input:disabled) { cursor: not-allowed; opacity: 0.7; }
+
+.access-box { display: grid; gap: 10px; padding-top: 4px; border-top: 1px solid var(--line); }
+.access-box h3 { margin-top: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text); }
+.access-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.access-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--soft); color: var(--blue-700); }
+.access-row strong { display: block; font-size: 13.5px; color: var(--blue-900); }
+.access-row small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.access-action { display: flex; justify-content: flex-end; }
+.confirm-pair { display: inline-flex; gap: 6px; }
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .user-search input { width: 120px; }
+  .access-row { grid-template-columns: auto minmax(0, 1fr); }
+  .access-action { grid-column: 1 / -1; justify-content: stretch; }
+  .access-action .btn, .confirm-pair { flex: 1; }
+}

@@ -16,11 +16,12 @@ import {
 } from "lucide-react";
 import { totpUri } from "../../services/cognito";
 import { useAuth } from "../../contexts/auth";
-import logo from "../../assets/logo-sincofarma.webp";
+import logo from "../../assets/logo-sincofarma.png";
 import LightBeams from "../../components/LightBeams";
 import { EASE, pulse, rise as riseBase } from "../../utils/motion";
 import { useSpotlightTilt } from "../../hooks/useSpotlightTilt";
 import { COMPLIANCE, DEMO_MODE } from "../../config/app";
+import Recuperar from "./Recuperar";
 import "./Login.css";
 
 // entrada escalonada de cada bloco do card (mesma linguagem do painel)
@@ -33,6 +34,9 @@ export default function Login() {
   const [focused, setFocused] = useState(null);
   const [error, setError] = useState("");
   const [help, setHelp] = useState(false);
+  // "Esqueci a senha" (login real): troca o formulário pelo de recuperação
+  const [recover, setRecover] = useState(false);
+  const [notice, setNotice] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | success
   // etapa pendente do Cognito: { type, username, session, secret?, qr? }
   // NEW_PASSWORD_REQUIRED (senha temporária do gestor), MFA_SETUP (cadastrar o
@@ -42,7 +46,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
 
-  const { signIn, completeNewPassword, startTotpSetup, finishTotpSetup, answerTotp } = useAuth();
+  const { signIn, completeNewPassword, startTotpSetup, finishTotpSetup, answerTotp, mode } = useAuth();
   const navigate = useNavigate();
   // motivo de um encerramento automático (lido uma vez e apagado)
   const [idleLogout] = useState(() => {
@@ -257,6 +261,21 @@ export default function Login() {
                 </p>
               )}
 
+              {notice && !recover && (
+                <p className="login-idle" role="status">{notice}</p>
+              )}
+
+              {recover ? (
+                <Recuperar
+                  initialIdentifier={identifier}
+                  onCancel={() => setRecover(false)}
+                  onDone={(message) => {
+                    setRecover(false);
+                    setPassword("");
+                    setNotice(message);
+                  }}
+                />
+              ) : (
               <form onSubmit={handleSubmit} noValidate>
                 {challenge && challenge.type !== "NEW_PASSWORD_REQUIRED" ? (
                   <motion.div
@@ -377,8 +396,15 @@ export default function Login() {
                     <button
                       type="button"
                       className="link-underline link-btn"
-                      onClick={() => setHelp((v) => !v)}
-                      aria-expanded={help}
+                      onClick={() => {
+                        // com login real, recupera por e-mail; na demonstração, só a orientação
+                        if (mode === "cognito") {
+                          setError("");
+                          setNotice("");
+                          setRecover(true);
+                        } else setHelp((v) => !v);
+                      }}
+                      aria-expanded={mode === "cognito" ? undefined : help}
                       aria-controls="login-help"
                     >
                       Esqueceu a senha?
@@ -533,6 +559,7 @@ export default function Login() {
                   </motion.button>
                 </motion.div>
               </form>
+              )}
 
               <motion.hr
                 initial={{ scaleX: 0, opacity: 0 }}

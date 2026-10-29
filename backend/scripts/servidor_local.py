@@ -124,12 +124,24 @@ def main() -> int:
             ("GET", "encaminhamentos"): api.listar_encaminhamentos,
             ("GET", "encaminhamentos", "id"): api.ver_encaminhamento,
             ("PATCH", "encaminhamentos", "id"): api.atualizar_encaminhamento,
+            ("GET", "usuarios"): api.listar_usuarios,
+            ("POST", "usuarios"): api.criar_usuario,
+            ("PATCH", "usuarios", "id"): api.atualizar_usuario,
+            ("GET", "visits", "id"): api.ver_visita,
+            ("GET", "auditoria"): api.listar_auditoria,
         }
         cognito_ops = {
             "InitiateAuth": idp.initiate_auth,
             "RespondToAuthChallenge": idp.respond_to_auth_challenge,
             "AssociateSoftwareToken": idp.associate_software_token,
             "VerifySoftwareToken": idp.verify_software_token,
+            # "Minha conta" e "Esqueci a senha" (no servidor local, qualquer código de 6 dígitos vale)
+            "GetUser": idp.get_user,
+            "ChangePassword": idp.change_password,
+            "SetUserMFAPreference": idp.set_user_mfa_preference,
+            "GlobalSignOut": idp.global_sign_out,
+            "ForgotPassword": idp.forgot_password,
+            "ConfirmForgotPassword": idp.confirm_forgot_password,
             "RevokeToken": idp.revoke_token,
         }
 

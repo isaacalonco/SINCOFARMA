@@ -7,7 +7,11 @@ export const loaders = {
   NovaTriagem: () => import("./NovaTriagem/NovaTriagem"),
   EmBreve: () => import("./EmBreve/EmBreve"),
   SemAcesso: () => import("./SemAcesso/SemAcesso"),
+  Usuarios: () => import("./Usuarios/Usuarios"),
+  MinhaConta: () => import("./MinhaConta/MinhaConta"),
+  Ficha: () => import("./Ficha/Ficha"),
+  Auditoria: () => import("./Auditoria/Auditoria"),
 };
 
 /** Páginas internas (tudo menos o login). */
-export const appPages = [loaders.Dashboard, loaders.NovaTriagem, loaders.EmBreve, loaders.SemAcesso];
+export const appPages = [loaders.Dashboard, loaders.NovaTriagem, loaders.EmBreve, loaders.SemAcesso, loaders.Usuarios, loaders.MinhaConta, loaders.Ficha, loaders.Auditoria];

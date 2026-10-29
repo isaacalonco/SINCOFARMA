@@ -188,6 +188,18 @@
   font-size: 13px;
   font-weight: 700;
 }
+.sb-user-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.sb-user-link:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.sb-user-link.active .sb-avatar { box-shadow: 0 0 0 2px #fff; }
 .sb-user-info { flex: 1; min-width: 0; }
 .sb-user-info strong {
   display: block;
@@ -197,6 +209,10 @@
   text-overflow: ellipsis;
 }
 .sb-user-info small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.7);
@@ -1347,3 +1363,26 @@ tr:hover .avatar { transform: scale(1.1); }
   .bar-label.is-today { font-size: 12px; }
   .table-tools { width: 100%; justify-content: space-between; }
 }
+
+/* selos de perfil (Usuários, Minha conta) */
+.role-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.role-chip--green { background: #e3f6ee; color: #0b7a55; }
+.role-chip--blue { background: #e4eefc; color: #1857b0; }
+.role-chip--purple { background: #efebfd; color: #5636c4; }
+.role-chip--none { background: #f1f2f4; color: #5b6472; }
+
+/* ações destrutivas (desativar, sair de todos) */
+.btn--danger { color: #b91c1c; }
+.btn--danger:hover:not(:disabled) { border-color: #fca5a5; background: #fef2f2; }
+.btn--danger-solid { background: #dc2626; color: #fff; border: 1px solid #dc2626; }
+.btn--danger-solid:hover:not(:disabled) { background: #b91c1c; }
