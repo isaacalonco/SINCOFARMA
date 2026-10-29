@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Menu, X, WifiOff } from "lucide-react";
+import { Search, Menu, X, WifiOff, Pill, Stethoscope, Building2 } from "lucide-react";
 import { useAuth } from "../contexts/auth";
 import { useClinic, useSearch } from "../contexts/clinic";
 import Sidebar from "../components/Sidebar";
@@ -9,13 +9,21 @@ import VisitDrawer from "../components/VisitDrawer";
 import Toasts from "../components/Toasts";
 import IdleWarning from "../components/IdleWarning";
 import { useIdleTimeout } from "../hooks/useIdleTimeout";
-import { IDLE_MINUTES, IDLE_WARN_MS, idleTimeoutMs } from "../config/app";
+import { DEMO_MODE, IDLE_MINUTES, IDLE_WARN_MS, idleTimeoutMs } from "../config/app";
+import { PAPEIS } from "../services/permissoes";
 import { EASE } from "../utils/motion";
 import "../styles/app.css";
 import "../styles/overlays.css";
 
 // páginas que exibem a tabela filtrada pela busca
 const SEARCHABLE = ["/dashboard"];
+
+// selo do tipo de conta no canto do topo (texto em services/permissoes.js)
+const ROLE_BADGE = {
+  farmaceutico: { Icon: Pill, tone: "green" },
+  medico: { Icon: Stethoscope, tone: "blue" },
+  admin: { Icon: Building2, tone: "purple" },
+};
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
@@ -27,6 +35,7 @@ export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const searchRef = useRef(null);
+  const roles = (user?.roles ?? []).filter((r) => ROLE_BADGE[r]);
 
   // atalho "/" foca a busca
   useEffect(() => {
@@ -152,6 +161,24 @@ export default function AppLayout() {
               )}
             </AnimatePresence>
           </motion.label>
+
+          {/* tipo de conta: deixa claro com que perfil a pessoa está vendo o painel */}
+          <div className="account-roles" aria-label="Tipo de conta">
+            {roles.length ? (
+              roles.map((r) => {
+                const { Icon, tone } = ROLE_BADGE[r];
+                return (
+                  <span key={r} className={`account-role account-role--${tone}`} title={PAPEIS[r]}>
+                    <Icon size={14} aria-hidden="true" />
+                    <span className="account-role-label">{PAPEIS[r]}</span>
+                  </span>
+                );
+              })
+            ) : (
+              <span className="account-role account-role--none">Sem perfil</span>
+            )}
+            {DEMO_MODE && <span className="account-role account-role--demo">Demonstração</span>}
+          </div>
         </motion.div>
 
         {/* transição entre páginas */}
