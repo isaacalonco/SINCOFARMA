@@ -22,6 +22,11 @@ tests/                         pytest com DynamoDB e Cognito simulados
 | PATCH | `/visits/{id}` | troca desfecho e/ou Red Flag, só de quem registrou (concorrência otimista + auditoria) |
 | POST | `/rnds/sync` | responde 501 até a integração com a RNDS existir |
 | GET | `/unidades` | farmácias cadastradas (`id`, `name`), só para a administração escolher no painel |
+| GET | `/medicos` | médicos ativos (`id` = sub do Cognito, `name`; sem CPF), para o farmacêutico escolher |
+| POST | `/encaminhamentos` | farmacêutico envia um atendimento da farmácia: `{ visitId, doctorId, reason, priority: rotina\|urgente }` |
+| GET | `/encaminhamentos[?status=]` | farmacêutico: os da farmácia; médico: a caixa dele (resumos, sem ficha) |
+| GET | `/encaminhamentos/{id}` | detalhe com a ficha copiada no envio; a primeira abertura pelo médico marca `read` |
+| PATCH | `/encaminhamentos/{id}` | médico: `{ status: answered\|declined, response }`; farmácia: `{ status: cancelled }` |
 
 Todas exigem o **token de acesso** do Cognito no cabeçalho `Authorization`.
 
@@ -41,10 +46,24 @@ A tabela é a de `src/painel/comum/auth.py`; o front espelha em `src/services/pe
 Páginas do site por perfil (front): farmacêutico vê Dashboard, Atendimentos, Nova Triagem e Encaminhamentos;
 médico, só Encaminhamentos; administração, Dashboard (só números), Farmácias e Relatórios. Atendimentos chegam com `mine: true/false` (quem vê é quem registrou). Sem nenhum `papel:*` a API responde 403.
 
+## Encaminhamentos
+
+Estados: `sent` (enviado) → `read` (médico abriu) → `answered` (respondido) ou `declined` (recusado, com motivo).
+A farmácia pode cancelar (`cancelled`) enquanto não houver resposta. Mudanças concorrentes dão 409.
+
+- O médico **não** lê o registro clínico da farmácia: cada encaminhamento leva uma **cópia da ficha no momento
+  do envio** (queixa, histórico, sinais vitais, risco, observações) e os dados do paciente para contato, com o
+  CPF mascarado. Mudanças posteriores no atendimento não alteram o que foi encaminhado.
+- Médico vê só os endereçados a ele; farmácia vê os que ela enviou; administração não vê (números irão para
+  Relatórios). Fora disso a resposta é 404, como se não existisse.
+- Toda ação (envio, leitura, resposta, recusa, cancelamento) entra na auditoria do atendimento.
+- Médico é cadastrado com `--papel medico` (sem unidade e sem CRF) e identificado pelo `sub` do Cognito.
+
 ## Dados
 
 - **Tabela painel**: resumo do atendimento (nome, CPF anonimizado, queixa, sinais, desfecho) e contadores.
-- **Tabela clínico**: dados pessoais e clínicos completos e a trilha de auditoria. O front nunca lê esta tabela.
+- **Tabela clínico**: dados pessoais e clínicos completos, encaminhamentos (com a cópia da ficha) e a trilha de
+  auditoria. O front só a lê pelas rotas de encaminhamento, e só o que cada perfil pode ver.
 - O servidor recalcula urgência, sinais, CPF anonimizado, RT e protocolo; não confia no navegador.
 
 ## Desenvolvimento
@@ -53,7 +72,7 @@ médico, só Encaminhamentos; administração, Dashboard (só números), Farmác
 cd backend
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows
-.venv/Scripts/python -m pytest                               # 29 testes
+.venv/Scripts/python -m pytest                               # 47 testes
 .venv/Scripts/cfn-lint --regions sa-east-1 -- template.yaml
 ```
 

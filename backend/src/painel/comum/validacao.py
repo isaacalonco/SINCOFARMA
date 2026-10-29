@@ -283,3 +283,43 @@ def validar_atualizacao(visit_id: str, body: dict) -> dict:
     if not patch:
         raise HttpError(422, "Nada para atualizar.")
     return patch
+
+
+# ---------------------------------------------------------------- encaminhamentos
+
+PRIORITIES = ("rotina", "urgente")
+REFERRAL_STATUSES = ("sent", "read", "answered", "declined", "cancelled")
+SUB = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")  # sub do Cognito
+
+
+def validar_encaminhamento(body: dict) -> dict:
+    """POST /encaminhamentos: atendimento, médico, motivo e prioridade."""
+    erros = Erros()
+    visit_id = body.get("visitId")
+    if not isinstance(visit_id, str) or not VISIT_ID.match(visit_id):
+        erros.add("visitId", "Atendimento inválido.")
+    doctor = body.get("doctorId")
+    if not isinstance(doctor, str) or not SUB.match(doctor):
+        erros.add("doctorId", "Médico inválido.")
+    reason = _text(body, "reason", erros, "reason", required=True, min_len=5, max_len=1000)
+    priority = body.get("priority", "rotina")
+    if priority not in PRIORITIES:
+        erros.add("priority", "Prioridade inválida (rotina ou urgente).")
+    erros.raise_if_any()
+    return {"visitId": visit_id, "doctorId": doctor, "reason": reason, "priority": priority}
+
+
+def validar_mudanca_encaminhamento(ref_id: str, body: dict) -> dict:
+    """PATCH /encaminhamentos/{id}: responder, recusar ou cancelar."""
+    if not VISIT_ID.match(ref_id or ""):
+        raise HttpError(404, "Encaminhamento não encontrado.")
+    extra = set(body) - {"status", "response"}
+    if extra:
+        raise HttpError(422, "Campos não permitidos.", {"fields": {k: "Não editável." for k in sorted(extra)}})
+    erros = Erros()
+    status = body.get("status")
+    if status not in ("answered", "declined", "cancelled"):
+        erros.add("status", "Use answered, declined ou cancelled.")
+    response = _text(body, "response", erros, "response", required=status in ("answered", "declined"), min_len=2, max_len=2000)
+    erros.raise_if_any()
+    return {"status": status, "response": response}

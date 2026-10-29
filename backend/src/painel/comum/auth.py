@@ -25,8 +25,10 @@ PERMISSOES: dict[str, frozenset[str]] = {
     "sincronizar_rnds": frozenset({"farmaceutico"}),
     # indicadores de qualquer farmácia (gestão do Sincofarma)
     "ver_todas_unidades": frozenset({"admin"}),
-    # encaminhamentos: o médico recebe os que forem endereçados a ele (rotas ainda não existem)
+    # encaminhamentos: a farmácia vê os que enviou; o médico, só os endereçados a ele
     "ver_encaminhamentos": frozenset({"farmaceutico", "medico"}),
+    "criar_encaminhamento": frozenset({"farmaceutico"}),  # também cancela os da própria farmácia
+    "responder_encaminhamento": frozenset({"medico"}),
 }
 
 # papéis que só fazem sentido dentro de uma farmácia

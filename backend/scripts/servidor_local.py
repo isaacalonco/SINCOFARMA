@@ -119,6 +119,11 @@ def main() -> int:
             ("PATCH", "visits"): api.atualizar_visita,
             ("POST", "rnds"): api.sincronizar_rnds,
             ("GET", "unidades"): api.listar_unidades,
+            ("GET", "medicos"): api.listar_medicos,
+            ("POST", "encaminhamentos"): api.criar_encaminhamento,
+            ("GET", "encaminhamentos"): api.listar_encaminhamentos,
+            ("GET", "encaminhamentos", "id"): api.ver_encaminhamento,
+            ("PATCH", "encaminhamentos", "id"): api.atualizar_encaminhamento,
         }
         cognito_ops = {
             "InitiateAuth": idp.initiate_auth,
@@ -165,7 +170,9 @@ def main() -> int:
                         return self._send(400, json.dumps({"__type": e["Code"], "message": e.get("Message", "")}))
 
                 parts = [p for p in self.path.split("?")[0].split("/") if p]
-                fn = rotas.get((method, parts[0] if parts else ""))
+                base = (method, parts[0] if parts else "")
+                # /recurso/{id} tem handler próprio quando registrado com "id"
+                fn = rotas.get((*base, "id")) if len(parts) > 1 and (*base, "id") in rotas else rotas.get(base)
                 if not fn:
                     return self._send(404, json.dumps({"message": "Rota inexistente."}))
                 claims = claims_do_token(idp, pool, self.headers.get("Authorization", ""))

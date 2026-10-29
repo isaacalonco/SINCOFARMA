@@ -32,6 +32,15 @@ def _table(ddb, name):
     )
 
 
+DOCTORS = {"39053344705": "Dr. Paulo Lima", "71428793860": "Dra. Carla Nunes"}
+
+
+def doctor_sub(username: str) -> str:
+    """sub que o Cognito (simulado) deu ao médico."""
+    resp = boto3.client("cognito-idp", region_name=REGION).admin_get_user(UserPoolId=os.environ["USER_POOL_ID"], Username=username)
+    return next(a["Value"] for a in resp["UserAttributes"] if a["Name"] == "sub")
+
+
 @pytest.fixture
 def aws(monkeypatch):
     with mock_aws():
@@ -50,6 +59,12 @@ def aws(monkeypatch):
                 MessageAction="SUPPRESS",
             )
 
+        # médicos (recebem encaminhamentos): só nome, sem CRF
+        idp.create_group(UserPoolId=pool, GroupName="papel:medico")
+        for username, name in DOCTORS.items():
+            idp.admin_create_user(UserPoolId=pool, Username=username, UserAttributes=[{"Name": "name", "Value": name}], MessageAction="SUPPRESS")
+            idp.admin_add_user_to_group(UserPoolId=pool, Username=username, GroupName="papel:medico")
+
         # importa depois de ligar o mock: os clientes boto3 do módulo ficam simulados
         for mod in [m for m in sys.modules if m.startswith("painel")]:
             del sys.modules[mod]
@@ -61,7 +76,7 @@ def aws(monkeypatch):
         yield api
 
 
-def event(method="GET", path="/dashboard", body=None, user="52998224725", groups="[unidade:asa-sul papel:farmaceutico]", path_params=None, query=None):
+def event(method="GET", path="/dashboard", body=None, user="52998224725", groups="[unidade:asa-sul papel:farmaceutico]", path_params=None, query=None, sub=None):
     """Evento no formato do HTTP API (payload 2.0) já com claims do autorizador JWT."""
     return {
         "version": "2.0",
@@ -74,7 +89,7 @@ def event(method="GET", path="/dashboard", body=None, user="52998224725", groups
         "requestContext": {
             "http": {"method": method, "path": path},
             "authorizer": {"jwt": {"claims": {
-                "sub": f"sub-{user}",
+                "sub": sub or f"sub-{user}",
                 "username": user,
                 "token_use": "access",
                 "cognito:groups": groups,
