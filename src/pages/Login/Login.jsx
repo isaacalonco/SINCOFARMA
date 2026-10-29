@@ -6,6 +6,7 @@ import {
   IdCard,
   Lock,
   ArrowRight,
+  ArrowLeft,
   Info,
   Eye,
   EyeClosed,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { totpUri } from "../../services/cognito";
 import { useAuth } from "../../contexts/auth";
-import logo from "../../assets/logo-sincofarma.png";
+import logo from "../../assets/logo-sincofarma.webp";
 import LightBeams from "../../components/LightBeams";
 import { EASE, pulse, rise as riseBase } from "../../utils/motion";
 import { useSpotlightTilt } from "../../hooks/useSpotlightTilt";
@@ -45,6 +46,8 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
+  // "confiar neste computador por 24 h": nas próximas entradas, só a senha
+  const [trustDevice, setTrustDevice] = useState(false);
 
   const { signIn, completeNewPassword, startTotpSetup, finishTotpSetup, answerTotp, mode } = useAuth();
   const navigate = useNavigate();
@@ -75,7 +78,7 @@ export default function Login() {
 
   /** Mostra a próxima etapa pedida pelo Cognito (podem vir várias em sequência). */
   async function enterChallenge(err) {
-    const next = { type: err.challenge, username: err.username, session: err.session };
+    const next = { type: err.challenge, username: err.username, session: err.session, loginName: err.loginName };
     if (next.type === "MFA_SETUP") {
       const setup = await startTotpSetup(next);
       const QRCode = await import("qrcode");
@@ -87,6 +90,17 @@ export default function Login() {
     setChallenge(next);
     setPassword("");
     setMfaCode("");
+  }
+
+  /** Desiste da etapa (senha nova, QR code ou código) e volta ao CPF e senha. */
+  function cancelChallenge() {
+    setChallenge(null);
+    setMfaCode("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPassword("");
+    setError("");
+    setStatus("idle");
   }
 
   async function handleSubmit(e) {
@@ -112,8 +126,8 @@ export default function Login() {
     setStatus("loading");
     try {
       if (type === "NEW_PASSWORD_REQUIRED") await completeNewPassword(challenge, newPassword);
-      else if (type === "MFA_SETUP") await finishTotpSetup(challenge, mfaCode);
-      else if (type === "SOFTWARE_TOKEN_MFA") await answerTotp(challenge, mfaCode);
+      else if (type === "MFA_SETUP") await finishTotpSetup(challenge, mfaCode, trustDevice);
+      else if (type === "SOFTWARE_TOKEN_MFA") await answerTotp(challenge, mfaCode, trustDevice);
       else await signIn(identifier, password);
       setStatus("success");
       // a tela de entrada (logo + carregamento) abre uma vez, logo depois do login
@@ -277,6 +291,11 @@ export default function Login() {
                 />
               ) : (
               <form onSubmit={handleSubmit} noValidate>
+                {challenge && (
+                  <button type="button" className="challenge-back" onClick={cancelChallenge} disabled={loading}>
+                    <ArrowLeft size={15} /> Voltar para o login
+                  </button>
+                )}
                 {challenge && challenge.type !== "NEW_PASSWORD_REQUIRED" ? (
                   <motion.div
                     className="new-password"
@@ -319,6 +338,13 @@ export default function Login() {
                         required
                       />
                     </div>
+                    <label className="trust-device">
+                      <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
+                      <span>
+                        <b>Confiar neste computador por 24 horas</b>
+                        <small>Nas próximas entradas, neste navegador, basta a senha. Não marque em computador de uso público.</small>
+                      </span>
+                    </label>
                   </motion.div>
                 ) : challenge ? (
                   <motion.div

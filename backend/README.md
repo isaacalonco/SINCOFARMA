@@ -87,7 +87,7 @@ perfil, farmácia e protocolo, **sem nenhum dado de paciente**. É o que a tela 
 cd backend
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows
-.venv/Scripts/python -m pytest                               # 67 testes
+.venv/Scripts/python -m pytest                               # 68 testes
 .venv/Scripts/cfn-lint --regions sa-east-1 -- template.yaml
 ```
 
@@ -139,5 +139,11 @@ VITE_COGNITO_CLIENT_ID=<UserPoolClientId>
   nos seguintes, pede o código de 6 dígitos. Se o farmacêutico perder o celular, o gestor remove o MFA do usuário
   no Cognito (`admin-set-user-mfa-preference`) e o cadastro do app é refeito no próximo login.
 - Proteção contra ameaças do Cognito não configurada: recomendada antes de produção.
+- "Confiar neste computador por 24 h" (opcional, marcado na tela do código do MFA): aparelho lembrado do Cognito
+  (`DeviceConfiguration` com escolha da pessoa). Nas próximas 24 h, naquele navegador, o login pede só a senha e o
+  navegador prova o aparelho por SRP (conta da biblioteca oficial `amazon-cognito-identity-js`). O Cognito não
+  expira aparelhos sozinho: a tarefa `EsquecerAparelhosFn` roda de hora em hora e esquece os criados há mais de 24 h.
+  Todo login registra o aparelho (a renovação do acesso exige a chave); só fica lembrado quem confiou.
+  O servidor local (moto) não simula aparelhos: o fluxo é coberto por testes com o Cognito simulado no front.
 - Em `prod`, tabelas e user pool têm proteção contra exclusão; tabelas ficam retidas se o stack for apagado.
 - Sem WAF na API (HTTP API não suporta WAF diretamente); há limite de taxa por rota.

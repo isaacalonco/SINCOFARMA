@@ -17,11 +17,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   /** MFA (app autenticador): conclui o cadastro do app ou responde o código. */
-  const finishTotpSetup = useCallback(async (setup, code) => {
-    setUser(await authService.finishTotpSetup(setup, code));
+  const finishTotpSetup = useCallback(async (setup, code, trust) => {
+    setUser(await authService.finishTotpSetup(setup, code, trust));
   }, []);
-  const answerTotp = useCallback(async (challenge, code) => {
-    setUser(await authService.answerTotp(challenge, code));
+  const answerTotp = useCallback(async (challenge, code, trust) => {
+    setUser(await authService.answerTotp(challenge, code, trust));
   }, []);
 
   const signOut = useCallback(() => {

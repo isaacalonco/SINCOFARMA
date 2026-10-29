@@ -3,6 +3,7 @@ import { Children, cloneElement, isValidElement, useId, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { EASE, SPRING } from "../../utils/motion";
+import Select from "../../components/Select";
 
 const CONTROL_TAGS = new Set(["input", "select", "textarea"]);
 const shake = { x: [0, -6, 6, -4, 4, 0] };
@@ -29,7 +30,7 @@ function FieldError({ id, error }) {
 /** Foca o controle ao clicar em qualquer ponto do cartão do campo (conveniência de mouse). */
 function focusControl(e) {
   if (e.target === e.currentTarget || e.target.classList?.contains("tg-unit")) {
-    e.currentTarget.querySelector("input, select, textarea")?.focus();
+    e.currentTarget.querySelector("input, select, textarea, button.sel")?.focus();
   }
 }
 
@@ -41,7 +42,7 @@ export function Field({ label, invalid, error, className = "", children }) {
   const id = useId();
   const errId = `${id}-err`;
   const items = Children.toArray(children);
-  const controlIndex = items.findIndex((c) => isValidElement(c) && CONTROL_TAGS.has(c.type));
+  const controlIndex = items.findIndex((c) => isValidElement(c) && (CONTROL_TAGS.has(c.type) || c.type === Select));
   const showError = invalid && !!error;
 
   return (

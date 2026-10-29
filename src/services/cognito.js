@@ -2,6 +2,8 @@
 // Só as chamadas que o painel usa: login, troca de senha inicial, MFA por
 // app autenticador (cadastro e código), renovação do token e revogação no logout.
 
+import * as device from "./device";
+
 const REGION = import.meta.env.VITE_COGNITO_REGION;
 const CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID;
 // só para testes locais (servidor que simula o Cognito); em produção fica vazio
@@ -10,13 +12,14 @@ const ENDPOINT = import.meta.env.VITE_COGNITO_ENDPOINT || `https://cognito-idp.$
 export const COGNITO_ENABLED = Boolean(REGION && CLIENT_ID);
 
 export class AuthError extends Error {
-  constructor(message, { code, challenge, session, username } = {}) {
+  constructor(message, { code, challenge, session, username, loginName } = {}) {
     super(message);
     this.name = "AuthError";
     this.code = code;
     this.challenge = challenge;
     this.session = session;
     this.username = username;
+    this.loginName = loginName; // como a pessoa digitou (CPF ou alias do CRF)
   }
 }
 
@@ -77,6 +80,7 @@ function tokensFrom(result) {
     idToken: result.IdToken,
     refreshToken: result.RefreshToken,
     expiresIn: result.ExpiresIn,
+    newDevice: result.NewDeviceMetadata ?? null,
   };
 }
 
@@ -98,16 +102,71 @@ function resultOrChallenge(data, username) {
     challenge: data.ChallengeName,
     session: data.Session,
     username: data.ChallengeParameters?.USER_ID_FOR_SRP || username,
+    loginName: username,
   });
+}
+
+/**
+ * Login concluído: registra o aparelho novo (sempre, como a biblioteca oficial;
+ * a renovação do acesso exige a chave) e o lembra por 24 h se a pessoa confiou.
+ * Falha aqui nunca derruba o login: segue sem aparelho.
+ */
+async function withDevice(tokens, { usernames, trust }) {
+  if (!tokens.newDevice) return tokens;
+  try {
+    const deviceKey = await device.confirm(call, { accessToken: tokens.accessToken, newDevice: tokens.newDevice, usernames, trust });
+    return { ...tokens, deviceKey };
+  } catch {
+    return tokens;
+  }
 }
 
 export async function initiateAuth(identifier, password) {
   const username = toUsername(identifier);
-  const data = await call("InitiateAuth", {
-    AuthFlow: "USER_PASSWORD_AUTH",
-    ClientId: CLIENT_ID,
-    AuthParameters: { USERNAME: username, PASSWORD: password },
-  });
+  if (device.expired(username)) device.forget(username); // passou das 24 h: volta a pedir o código
+  const trusted = device.trusted(username);
+  const params = { USERNAME: username, PASSWORD: password, ...(trusted ? { DEVICE_KEY: trusted.deviceKey } : {}) };
+
+  let data;
+  let viaDevice = !!trusted;
+  try {
+    data = await call("InitiateAuth", { AuthFlow: "USER_PASSWORD_AUTH", ClientId: CLIENT_ID, AuthParameters: params });
+  } catch (err) {
+    if (!trusted) throw err;
+    // senha errada ou aparelho que o Cognito já esqueceu: tenta sem o aparelho.
+    // Se falhar de novo, era a senha (o erro sobe e o aparelho continua confiável).
+    data = await call("InitiateAuth", {
+      AuthFlow: "USER_PASSWORD_AUTH",
+      ClientId: CLIENT_ID,
+      AuthParameters: { USERNAME: username, PASSWORD: password },
+    });
+    device.forget(username);
+    viaDevice = false;
+  }
+
+  if (data.ChallengeName === "DEVICE_SRP_AUTH" && viaDevice) {
+    // aparelho lembrado: prova criptográfica no lugar do código do MFA
+    let result = null;
+    try {
+      result = await device.authenticate(call, {
+        clientId: CLIENT_ID,
+        session: data.Session,
+        username: data.ChallengeParameters?.USERNAME || username,
+        device: trusted,
+      });
+    } catch {
+      result = null;
+    }
+    if (!result) {
+      // qualquer falha: esquece o aparelho e faz o login normal, com o código
+      device.forget(username);
+      return initiateAuth(identifier, password);
+    }
+    if (!result.ChallengeName) return { ...tokensFrom(result.AuthenticationResult), deviceKey: trusted.deviceKey };
+    return resultOrChallenge(result, username);
+  }
+
+  if (!data.ChallengeName) return withDevice(tokensFrom(data.AuthenticationResult), { usernames: [username], trust: false });
   return resultOrChallenge(data, username);
 }
 
@@ -128,7 +187,7 @@ export async function startTotpSetup({ username, session }) {
 }
 
 /** MFA_SETUP, passo 2: confere o primeiro código do app e conclui o login. */
-export async function finishTotpSetup({ username, session }, code) {
+export async function finishTotpSetup({ username, session, loginName }, code, trust = false) {
   const verified = await call(
     "VerifySoftwareToken",
     { Session: session, UserCode: code, FriendlyDeviceName: "Painel Sincofarma" },
@@ -144,11 +203,12 @@ export async function finishTotpSetup({ username, session }, code) {
     },
     MFA_MESSAGES
   );
-  return resultOrChallenge(data, username);
+  if (data.ChallengeName) return resultOrChallenge(data, username);
+  return withDevice(tokensFrom(data.AuthenticationResult), { usernames: [username, loginName], trust });
 }
 
 /** Login com MFA já configurado: responde o código de 6 dígitos. */
-export async function answerTotp({ username, session }, code) {
+export async function answerTotp({ username, session, loginName }, code, trust = false) {
   const data = await call(
     "RespondToAuthChallenge",
     {
@@ -159,7 +219,8 @@ export async function answerTotp({ username, session }, code) {
     },
     MFA_MESSAGES
   );
-  return resultOrChallenge(data, username);
+  if (data.ChallengeName) return resultOrChallenge(data, username);
+  return withDevice(tokensFrom(data.AuthenticationResult), { usernames: [username, loginName], trust });
 }
 
 /** Endereço otpauth:// que vira o QR code lido pelo app autenticador. */
@@ -168,11 +229,12 @@ export function totpUri(secret, account) {
   return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent("Sincofarma DF")}`;
 }
 
-export async function refresh(refreshToken) {
+export async function refresh(refreshToken, deviceKey = null) {
   const data = await call("InitiateAuth", {
     AuthFlow: "REFRESH_TOKEN_AUTH",
     ClientId: CLIENT_ID,
-    AuthParameters: { REFRESH_TOKEN: refreshToken },
+    // com rastreio de aparelhos, a renovação precisa da chave do aparelho da sessão
+    AuthParameters: { REFRESH_TOKEN: refreshToken, ...(deviceKey ? { DEVICE_KEY: deviceKey } : {}) },
   });
   // sem rotação: o refresh token continua o mesmo
   return { ...tokensFrom(data.AuthenticationResult), refreshToken };

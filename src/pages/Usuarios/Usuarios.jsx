@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { UserPlus, Search, TriangleAlert, ListFilter, ChevronDown, Settings2 } from "lucide-react";
+import { UserPlus, Search, TriangleAlert, ListFilter, Settings2 } from "lucide-react";
 import SpotlightCard from "../../components/SpotlightCard";
+import Select from "../../components/Select";
 import { repository } from "../../data";
 import { useClinic } from "../../contexts/clinic";
 import { PAPEIS } from "../../services/permissoes";
@@ -124,17 +125,14 @@ export default function Usuarios() {
               <span className="sr-only">Buscar por nome ou e-mail</span>
               <input type="search" placeholder="Nome ou e-mail" value={q} onChange={(e) => setQ(e.target.value)} />
             </label>
-            <label className={`btn-filter${role !== "all" ? " is-filtered" : ""}`}>
-              <ListFilter size={14} aria-hidden="true" />
-              <span className="sr-only">Filtrar por perfil</span>
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="all">Todos os perfis</option>
-                {Object.entries(PAPEIS).map(([k, label]) => (
-                  <option key={k} value={k}>{label}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="chev" aria-hidden="true" />
-            </label>
+            <Select
+              className={`btn-filter${role !== "all" ? " is-filtered" : ""}`}
+              icon={ListFilter}
+              label="Filtrar por perfil"
+              value={role}
+              onChange={setRole}
+              options={[{ value: "all", label: "Todos os perfis" }, ...Object.entries(PAPEIS).map(([k, l]) => ({ value: k, label: l }))]}
+            />
           </div>
         </header>
 
