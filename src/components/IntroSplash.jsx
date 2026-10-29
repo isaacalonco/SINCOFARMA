@@ -1,34 +1,47 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import logo from "../assets/logo-sincofarma.webp";
+import GlassReveal from "./GlassReveal";
+import { MARK_CROP } from "./glassLogo";
+import { useMotionPrefs } from "../contexts/motionPrefsContext";
 import { appPages } from "../pages/loaders";
 import { PAPEIS } from "../services/permissoes";
 import { EASE } from "../utils/motion";
 
-const MIN_MS = 1400; // abaixo disso a tela só pisca
+const MIN_MS = 2600; // tempo da marca sair do vidro; abaixo disso a tela só pisca
 const MAX_MS = 8000; // rede ruim: entra assim mesmo, cada página mostra o próprio carregamento
 
 const STEPS = ["Preparando seu painel", "Carregando os módulos", "Buscando os dados da farmácia", "Tudo pronto"];
 
+// mesma cor de fundo de .intro, porque o canvas pinta o próprio fundo
+const INTRO_BG = "#f4f8fc";
+// gota rápida, marca grande contra a borda do vidro, solta cedo
+const GLASS = { present: 1.5, glide: 1.4, startZoom: 2.2, response: 0.4, tileSize: 220 };
+
 /**
- * Tela de entrada logo depois do login: logo do Sincofarma enquanto as páginas
- * do painel baixam e os dados chegam (`ready`). Chama `onDone` ao terminar.
+ * Tela de entrada logo depois do login: a marca do Sincofarma sai de uma gota de
+ * vidro enquanto as páginas do painel baixam e os dados chegam (`ready`).
+ * Chama `onDone` ao terminar.
  */
 export default function IntroSplash({ user, ready, onDone }) {
+  const { reduced } = useMotionPrefs();
   const [pagesLoaded, setPagesLoaded] = useState(0);
   const [minElapsed, setMinElapsed] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  // com movimento reduzido o logotipo já entra inteiro
+  const [released, setReleased] = useState(reduced);
+  const onRelease = useCallback(() => setReleased(true), []);
 
   useEffect(() => {
     // falha de rede num chunk não segura a entrada: a rota tenta de novo depois
     appPages.forEach((load) => load().catch(() => {}).finally(() => setPagesLoaded((n) => n + 1)));
-    const min = setTimeout(() => setMinElapsed(true), MIN_MS);
+    const min = setTimeout(() => setMinElapsed(true), reduced ? 1200 : MIN_MS);
     const max = setTimeout(() => setTimedOut(true), MAX_MS);
     return () => {
       clearTimeout(min);
       clearTimeout(max);
     };
-  }, []);
+  }, [reduced]);
 
   const pagesDone = pagesLoaded >= appPages.length;
   const allLoaded = pagesDone && ready;
@@ -71,14 +84,27 @@ export default function IntroSplash({ user, ready, onDone }) {
       </div>
 
       <div className="intro-card">
-        <motion.img
-          src={logo}
-          alt="Sincofarma DF"
-          className="intro-logo"
-          initial={{ opacity: 0, y: 14, scale: 0.94 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.7, ease: EASE }}
-        />
+        <div className={`intro-mark${released ? " is-released" : ""}`}>
+          <GlassReveal
+            logo={logo}
+            crop={MARK_CROP}
+            background={INTRO_BG}
+            label="Sincofarma DF"
+            still={reduced}
+            tuning={GLASS}
+            onRelease={onRelease}
+            className="intro-glass"
+          />
+          {/* o logotipo inteiro entra embaixo quando o vidro solta a marca */}
+          <motion.img
+            src={logo}
+            alt=""
+            className="intro-logo"
+            initial={false}
+            animate={released ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 10, scale: 0.96 }}
+            transition={{ duration: 0.7, ease: EASE }}
+          />
+        </div>
 
         <motion.p
           className="intro-hello"
