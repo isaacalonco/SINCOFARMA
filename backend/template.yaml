@@ -300,6 +300,143 @@ Resources:
           Type: HttpApi
           Properties: { ApiId: !Ref Api, Method: POST, Path: /rnds/sync }
 
+  # ---------------------------------------------------------------- encaminhamentos
+  MedicosFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-medicos"
+      Handler: painel.api.listar_medicos
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: cognito-idp:ListUsersInGroup
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Get:
+          Type: HttpApi
+          Properties: { ApiId: !Ref Api, Method: GET, Path: /medicos }
+
+  CriarEncaminhamentoFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-criar-encaminhamento"
+      Handler: painel.api.criar_encaminhamento
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem # atendimento e perfil da unidade
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem] # ficha (leitura) + encaminhamento e auditoria
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+            - Effect: Allow
+              Action: [cognito-idp:ListUsersInGroup, cognito-idp:AdminGetUser]
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Post:
+          Type: HttpApi
+          Properties: { ApiId: !Ref Api, Method: POST, Path: /encaminhamentos }
+
+  ListarEncaminhamentosFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-listar-encaminhamentos"
+      Handler: painel.api.listar_encaminhamentos
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Get:
+          Type: HttpApi
+          Properties: { ApiId: !Ref Api, Method: GET, Path: /encaminhamentos }
+
+  VerEncaminhamentoFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-ver-encaminhamento"
+      Handler: painel.api.ver_encaminhamento
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:UpdateItem, dynamodb:PutItem] # marca como lido + auditoria
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Get:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: "/encaminhamentos/{id}"
+
+  AtualizarEncaminhamentoFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-atualizar-encaminhamento"
+      Handler: painel.api.atualizar_encaminhamento
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:UpdateItem, dynamodb:PutItem]
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Patch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: PATCH
+            Path: "/encaminhamentos/{id}"
+
+  MedicosLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${MedicosFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  CriarEncaminhamentoLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CriarEncaminhamentoFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  ListarEncaminhamentosLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListarEncaminhamentosFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  VerEncaminhamentoLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${VerEncaminhamentoFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  AtualizarEncaminhamentoLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AtualizarEncaminhamentoFn}"
+      RetentionInDays: !Ref LogRetentionDays
   DashboardLogs:
     Type: AWS::Logs::LogGroup
     Properties:

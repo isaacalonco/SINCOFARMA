@@ -2,11 +2,19 @@
 
 import re
 
+from .comum import encaminhamentos as enc
 from .comum import repositorio as repo
 from .comum import tempo
 from .comum.auth import caller_from_event
 from .comum.http import HttpError, handler, parse_json
-from .comum.validacao import validar_atualizacao, validar_criacao
+from .comum.validacao import (
+    REFERRAL_STATUSES,
+    VISIT_ID,
+    validar_atualizacao,
+    validar_criacao,
+    validar_encaminhamento,
+    validar_mudanca_encaminhamento,
+)
 
 HISTORY_DAYS = 28
 UNIT_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
@@ -123,3 +131,51 @@ def sincronizar_rnds(event, _context):
     """POST /rnds/sync: integração ainda não existe; responde com honestidade."""
     caller_from_event(event).exigir("sincronizar_rnds")
     raise HttpError(501, "A integração com a RNDS ainda não está configurada.")
+
+
+# ---------------------------------------------------------------- encaminhamentos
+
+@handler
+def listar_medicos(event, _context):
+    """GET /medicos: para o farmacêutico escolher o destinatário (id e nome, sem CPF)."""
+    caller_from_event(event).exigir("criar_encaminhamento")
+    return 200, {"doctors": [{"id": d["id"], "name": d["name"]} for d in enc.doctors()]}
+
+
+@handler
+def criar_encaminhamento(event, _context):
+    """POST /encaminhamentos: envia um atendimento da farmácia a um médico."""
+    caller = caller_from_event(event)
+    caller.exigir("criar_encaminhamento")
+    return 201, enc.create(caller, validar_encaminhamento(parse_json(event)))
+
+
+@handler
+def listar_encaminhamentos(event, _context):
+    """GET /encaminhamentos[?status=]: caixa do médico ou encaminhamentos da farmácia."""
+    caller = caller_from_event(event)
+    caller.exigir("ver_encaminhamentos")
+    status = (event.get("queryStringParameters") or {}).get("status")
+    if status is not None and status not in REFERRAL_STATUSES:
+        raise HttpError(400, "Status inválido.")
+    return 200, {"referrals": enc.list_for(caller, status)}
+
+
+@handler
+def ver_encaminhamento(event, _context):
+    """GET /encaminhamentos/{id}: detalhe com a ficha; a primeira abertura pelo médico marca como lido."""
+    caller = caller_from_event(event)
+    caller.exigir("ver_encaminhamentos")
+    ref_id = (event.get("pathParameters") or {}).get("id", "")
+    if not VISIT_ID.match(ref_id):
+        raise HttpError(404, "Encaminhamento não encontrado.")
+    return 200, enc.open_one(caller, ref_id)
+
+
+@handler
+def atualizar_encaminhamento(event, _context):
+    """PATCH /encaminhamentos/{id}: médico responde ou recusa; farmácia cancela."""
+    caller = caller_from_event(event)
+    caller.exigir("ver_encaminhamentos")
+    ref_id = (event.get("pathParameters") or {}).get("id", "")
+    return 200, enc.change(caller, ref_id, validar_mudanca_encaminhamento(ref_id, parse_json(event)))

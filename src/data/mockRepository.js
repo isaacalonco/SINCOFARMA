@@ -8,6 +8,29 @@ const KEY = "sinco:clinic";
 const SCHEMA = 2;
 const LATENCY = 350;
 
+// encaminhamentos de demonstração: mesma forma que a API devolve
+const DEMO_DOCTORS = [
+  { id: "demo-medico-1", name: "Dr. Paulo Lima" },
+  { id: "demo-medico-2", name: "Dra. Carla Nunes" },
+];
+let referrals = [];
+const referralSummary = (r) => ({
+  id: r.id,
+  createdAt: r.createdAt,
+  status: r.status,
+  statusAt: r.statusAt,
+  priority: r.priority,
+  urgent: r.urgent,
+  risk: r.clinical.risk,
+  patientName: r.patient.name,
+  complaint: r.clinical.complaint.text,
+  protocol: r.protocol,
+  unit: r.unit,
+  unitName: r.unitName,
+  fromName: r.from.name,
+  doctorName: r.doctor.name,
+});
+
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function seedsForToday() {
@@ -122,6 +145,66 @@ export const mockRepository = {
     return { imported, lastSync, rndsPending: rndsQueue.length - loaded.rndsIndex };
   },
 
+  /* ---------- encaminhamentos (em memória; some ao recarregar) ---------- */
+  async listDoctors() {
+    await wait(LATENCY / 2);
+    return DEMO_DOCTORS;
+  },
+
+  async listReferrals(status) {
+    await wait(LATENCY / 2);
+    return referrals.filter((r) => !status || r.status === status).map(referralSummary);
+  },
+
+  async getReferral(id) {
+    await wait(LATENCY / 2);
+    const found = referrals.find((r) => r.id === id);
+    if (!found) throw new Error("Encaminhamento não encontrado.");
+    return found;
+  },
+
+  async createReferral({ visitId, doctorId, reason, priority = "rotina" }) {
+    await wait(LATENCY);
+    const visit = current().visits.find((v) => v.id === visitId);
+    const doctor = DEMO_DOCTORS.find((d) => d.id === doctorId);
+    if (!visit || !doctor) throw new Error("Atendimento ou médico não encontrado.");
+    const now = new Date().toISOString();
+    const ref = {
+      id: `ref${Date.now()}`,
+      visitId,
+      protocol: visit.protocol,
+      unit: "demo",
+      unitName: unit,
+      createdAt: now,
+      status: "sent",
+      statusAt: now,
+      priority,
+      urgent: priority === "urgente" || !!visit.urgent,
+      reason,
+      from: { name: "Dra. Ana Souza", crf: "4192" },
+      doctor,
+      // a demonstração não guarda a ficha completa: só o resumo do atendimento
+      patient: { name: visit.name, cpf: visit.cpf },
+      clinical: { complaint: { text: visit.complaint }, risk: visit.risk, redFlags: visit.redFlags ?? [], notes: visit.signs },
+      response: null,
+      answeredAt: null,
+      mine: true,
+    };
+    referrals = [ref, ...referrals];
+    return ref;
+  },
+
+  async updateReferral(id, { status, response = null }) {
+    await wait(LATENCY / 2);
+    const found = referrals.find((r) => r.id === id);
+    if (!found) throw new Error("Encaminhamento não encontrado.");
+    if (!["sent", "read"].includes(found.status)) throw new Error("Este encaminhamento já foi encerrado.");
+    const now = new Date().toISOString();
+    const updated = { ...found, status, statusAt: now, ...(response ? { response, answeredAt: now } : {}) };
+    referrals = referrals.map((r) => (r.id === id ? updated : r));
+    return updated;
+  },
+
   async reset() {
     loaded = fresh();
     write(loaded);
@@ -131,6 +214,7 @@ export const mockRepository = {
   /** Apaga o cache local (chamado no logout). */
   clear() {
     loaded = null;
+    referrals = [];
     try {
       localStorage.removeItem(KEY);
     } catch {

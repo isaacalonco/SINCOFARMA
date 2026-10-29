@@ -21,6 +21,10 @@ const PERMISSOES = {
   sincronizar_rnds: ["farmaceutico"],
   ver_todas_unidades: ["admin"],
   ver_encaminhamentos: ["farmaceutico", "medico"],
+  // envia (e cancela os da própria farmácia)
+  criar_encaminhamento: ["farmaceutico"],
+  // responde ou recusa os que recebeu
+  responder_encaminhamento: ["medico"],
 };
 
 /** O usuário tem a permissão? `user.roles` vem do login (grupos `papel:*`). */
