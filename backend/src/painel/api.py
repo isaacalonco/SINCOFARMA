@@ -2,18 +2,23 @@
 
 import re
 
+from .comum import auditoria
 from .comum import encaminhamentos as enc
 from .comum import repositorio as repo
+from .comum import usuarios
 from .comum import tempo
 from .comum.auth import caller_from_event
 from .comum.http import HttpError, handler, parse_json
 from .comum.validacao import (
     REFERRAL_STATUSES,
+    SUB,
     VISIT_ID,
     validar_atualizacao,
     validar_criacao,
     validar_encaminhamento,
     validar_mudanca_encaminhamento,
+    validar_mudanca_usuario,
+    validar_usuario,
 )
 
 HISTORY_DAYS = 28
@@ -179,3 +184,66 @@ def atualizar_encaminhamento(event, _context):
     caller.exigir("ver_encaminhamentos")
     ref_id = (event.get("pathParameters") or {}).get("id", "")
     return 200, enc.change(caller, ref_id, validar_mudanca_encaminhamento(ref_id, parse_json(event)))
+
+
+# ---------------------------------------------------------------- usuários (administração)
+
+@handler
+def listar_usuarios(event, _context):
+    """GET /usuarios: todos os usuários (CPF mascarado) e as farmácias para o formulário."""
+    caller_from_event(event).exigir("gerenciar_usuarios")
+    return 200, {"users": usuarios.list_all(), "units": repo.list_units()}
+
+
+@handler
+def criar_usuario(event, _context):
+    """POST /usuarios: cria a conta; o Cognito manda a senha temporária por e-mail."""
+    caller = caller_from_event(event)
+    caller.exigir("gerenciar_usuarios")
+    return 201, usuarios.create(caller, validar_usuario(parse_json(event)))
+
+
+@handler
+def atualizar_usuario(event, _context):
+    """PATCH /usuarios/{id}: perfis, farmácia, ativo, reset do MFA, reenvio do convite."""
+    caller = caller_from_event(event)
+    caller.exigir("gerenciar_usuarios")
+    user_id = (event.get("pathParameters") or {}).get("id", "")
+    if not SUB.match(user_id):
+        raise HttpError(404, "Usuário não encontrado.")
+    return 200, usuarios.update(caller, user_id, validar_mudanca_usuario(parse_json(event)))
+
+
+# ---------------------------------------------------------------- ficha do atendimento
+
+@handler
+def ver_visita(event, _context):
+    """GET /visits/{id}: ficha completa (registro clínico + histórico) para a farmácia do atendimento."""
+    caller = caller_from_event(event)
+    caller.exigir("ver_atendimentos")
+    visit_id = (event.get("pathParameters") or {}).get("id", "")
+    if not VISIT_ID.match(visit_id):
+        raise HttpError(404, "Atendimento não encontrado.")
+    return 200, repo.visit_record(caller, visit_id)
+
+
+# ---------------------------------------------------------------- auditoria (administração)
+
+MONTH = re.compile(r"\d{4}-\d{2}")
+CURSOR = re.compile(r"[0-9T:.+\-]{19,40}#[0-9a-f]{6}")
+
+
+@handler
+def listar_auditoria(event, _context):
+    """GET /auditoria?mes=aaaa-mm[&inicio=<cursor>]: registro geral do mês, mais recentes primeiro."""
+    caller_from_event(event).exigir("ver_auditoria")
+    qs = event.get("queryStringParameters") or {}
+    month = qs.get("mes") or tempo.month_key(tempo.now())
+    start = qs.get("inicio")
+    if not MONTH.fullmatch(month) or (start and not CURSOR.fullmatch(start)):
+        raise HttpError(400, "Filtro inválido.")
+    events, nxt = auditoria.month_page(month, start)
+    names = usuarios.names_by_sub()
+    for ev in events:
+        ev["actorName"] = names.get(ev.get("actorSub"), "Usuário removido")
+    return 200, {"month": month, "events": events, "next": nxt, "units": repo.list_units()}

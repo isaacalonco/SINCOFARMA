@@ -76,12 +76,13 @@ de verdade, rode o backend simulado na sua máquina (não precisa de conta AWS):
 
    | Perfil | CPF | O que vê |
    |---|---|---|
-   | Farmacêutico (unidade Asa Sul) | `52998224725` | dashboard da farmácia, atendimentos, nova triagem, encaminhamentos |
-   | Administração Sincofarma | `11144477735` | dashboard (qualquer farmácia, só números), farmácias, relatórios |
+   | Farmacêutico (unidade Asa Sul) | `52998224725` | dashboard da farmácia, atendimentos, nova triagem, encaminhamentos, ficha do atendimento |
+   | Administração Sincofarma | `11144477735` | dashboard (qualquer farmácia, só números), farmácias, relatórios, usuários, auditoria |
    | Médico | `39053344705` | encaminhamentos |
 
    O painel pede uma senha nova e depois mostra o QR code do MFA: no servidor local **qualquer código de
-   6 dígitos** é aceito.
+   6 dígitos** é aceito (vale também para o código do "Esqueci a senha"). Todo perfil tem "Minha conta",
+   aberta pelo nome no rodapé do menu.
 
 Cada tela tem uma permissão em [`src/services/permissoes.js`](src/services/permissoes.js), espelho da tabela
 do backend (veja "Papéis e permissões" em [`backend/README.md`](backend/README.md)). Página nova? Registre a

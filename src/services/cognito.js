@@ -181,3 +181,68 @@ export async function refresh(refreshToken) {
 export async function revoke(refreshToken) {
   await call("RevokeToken", { ClientId: CLIENT_ID, Token: refreshToken });
 }
+
+/* ---------- conta do próprio usuário (Minha conta) e recuperação de senha ---------- */
+
+const ACCOUNT_MESSAGES = {
+  NotAuthorizedException: "Senha atual incorreta.",
+  InvalidPasswordException: MESSAGES.InvalidPasswordException,
+  LimitExceededException: MESSAGES.LimitExceededException,
+  TooManyRequestsException: MESSAGES.TooManyRequestsException,
+  CodeMismatchException: "Código incorreto. Confira e tente de novo.",
+  EnableSoftwareTokenMFAException: "Código incorreto. Confira o app autenticador e tente de novo.",
+  ExpiredCodeException: "Código vencido. Peça um novo.",
+};
+
+/** Dados da conta (e-mail etc.) direto do Cognito. */
+export async function getUser(accessToken) {
+  const data = await call("GetUser", { AccessToken: accessToken }, ACCOUNT_MESSAGES);
+  return Object.fromEntries((data.UserAttributes ?? []).map((a) => [a.Name, a.Value]));
+}
+
+export async function changePassword(accessToken, previous, proposed) {
+  await call("ChangePassword", { AccessToken: accessToken, PreviousPassword: previous, ProposedPassword: proposed }, ACCOUNT_MESSAGES);
+}
+
+/** Trocar de celular, passo 1: novo segredo para o app autenticador. */
+export async function startTotpChange(accessToken) {
+  const data = await call("AssociateSoftwareToken", { AccessToken: accessToken }, ACCOUNT_MESSAGES);
+  return data.SecretCode;
+}
+
+/** Passo 2: confere o código do app novo e o deixa como o MFA da conta. */
+export async function finishTotpChange(accessToken, code) {
+  await call("VerifySoftwareToken", { AccessToken: accessToken, UserCode: code, FriendlyDeviceName: "Painel Sincofarma" }, ACCOUNT_MESSAGES);
+  await call(
+    "SetUserMFAPreference",
+    { AccessToken: accessToken, SoftwareTokenMfaSettings: { Enabled: true, PreferredMfa: true } },
+    ACCOUNT_MESSAGES
+  );
+}
+
+/** Encerra a sessão em todos os aparelhos (os refresh tokens deixam de valer). */
+export async function globalSignOut(accessToken) {
+  await call("GlobalSignOut", { AccessToken: accessToken }, ACCOUNT_MESSAGES);
+}
+
+const FORGOT_MESSAGES = {
+  ...ACCOUNT_MESSAGES,
+  // primeiro acesso pendente: a senha vem no e-mail de convite
+  NotAuthorizedException: "Ainda não houve primeiro acesso: use a senha temporária do e-mail de convite ou peça o reenvio à administração.",
+  InvalidParameterException: "Esta conta não tem e-mail confirmado. Procure a administração.",
+};
+
+/** Esqueci a senha, passo 1: o Cognito manda um código para o e-mail da conta. */
+export async function forgotPassword(identifier) {
+  const data = await call("ForgotPassword", { ClientId: CLIENT_ID, Username: toUsername(identifier) }, FORGOT_MESSAGES);
+  return data.CodeDeliveryDetails?.Destination ?? null; // e-mail mascarado (ex.: i***@g***)
+}
+
+/** Passo 2: código do e-mail + senha nova. */
+export async function confirmForgotPassword(identifier, code, newPassword) {
+  await call(
+    "ConfirmForgotPassword",
+    { ClientId: CLIENT_ID, Username: toUsername(identifier), ConfirmationCode: code, Password: newPassword },
+    FORGOT_MESSAGES
+  );
+}

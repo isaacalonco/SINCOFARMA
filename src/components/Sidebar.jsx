@@ -8,10 +8,12 @@ import {
   CircleArrowOutUpRight,
   Store,
   ChartColumn,
+  UsersRound,
+  ScrollText,
   LogOut,
   X,
 } from "lucide-react";
-import logo from "../assets/logo-sincofarma.webp";
+import logo from "../assets/logo-sincofarma.png";
 import { useClinic } from "../contexts/clinic";
 import { initials } from "../utils/initials";
 import { EASE, SPRING } from "../utils/motion";
@@ -64,6 +66,8 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
       items: [
         { label: "Farmácias", icon: Store, to: "/farmacias" },
         { label: "Relatórios", icon: ChartColumn, to: "/relatorios" },
+        { label: "Usuários", icon: UsersRound, to: "/usuarios" },
+        { label: "Auditoria", icon: ScrollText, to: "/auditoria" },
       ],
     },
   ];
@@ -170,11 +174,14 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.6, ease: EASE }}
         >
-          <span className="sb-avatar">{initials(user?.name) || "RT"}</span>
-          <div className="sb-user-info">
-            <strong>{user?.name ?? "Farmacêutico RT"}</strong>
-            <small>{user?.crf ?? (user?.roles ?? []).map((r) => PAPEIS[r]).filter(Boolean).join(" · ")}</small>
-          </div>
+          {/* nome e avatar levam a "Minha conta" (senha, app autenticador, sessões) */}
+          <NavLink to="/minha-conta" className="sb-user-link" onClick={onClose} title="Minha conta">
+            <span className="sb-avatar">{initials(user?.name) || "RT"}</span>
+            <span className="sb-user-info">
+              <strong>{user?.name ?? "Farmacêutico RT"}</strong>
+              <small>{user?.crf ?? (user?.roles ?? []).map((r) => PAPEIS[r]).filter(Boolean).join(" · ")}</small>
+            </span>
+          </NavLink>
           <MotionToggle className="sb-motion" />
           <motion.button
             className="sb-logout"

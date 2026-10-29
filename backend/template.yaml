@@ -324,7 +324,7 @@ Resources:
       Policies:
         - Statement:
             - Effect: Allow
-              Action: dynamodb:GetItem # atendimento e perfil da unidade
+              Action: [dynamodb:GetItem, dynamodb:PutItem] # atendimento e perfil da unidade; registro de auditoria geral
               Resource: !GetAtt TabelaPainel.Arn
             - Effect: Allow
               Action: [dynamodb:GetItem, dynamodb:PutItem] # ficha (leitura) + encaminhamento e auditoria
@@ -375,6 +375,9 @@ Resources:
               Action: [dynamodb:GetItem, dynamodb:UpdateItem, dynamodb:PutItem] # marca como lido + auditoria
               Resource: !GetAtt TabelaClinico.Arn
             - Effect: Allow
+              Action: dynamodb:PutItem # registro de auditoria geral
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
               Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
               Resource: !GetAtt ChaveDados.Arn
               Condition:
@@ -398,6 +401,9 @@ Resources:
             - Effect: Allow
               Action: [dynamodb:GetItem, dynamodb:UpdateItem, dynamodb:PutItem]
               Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: dynamodb:PutItem # registro de auditoria geral
+              Resource: !GetAtt TabelaPainel.Arn
             - Effect: Allow
               Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
               Resource: !GetAtt ChaveDados.Arn
@@ -436,6 +442,171 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${AtualizarEncaminhamentoFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  # ---------------------------------------------------------------- usuários (administração)
+  ListarUsuariosFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-listar-usuarios"
+      Handler: painel.api.listar_usuarios
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Scan]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+            - Effect: Allow
+              Action: [cognito-idp:ListUsers, cognito-idp:ListGroups, cognito-idp:ListUsersInGroup]
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: "/usuarios"
+
+  CriarUsuarioFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-criar-usuario"
+      Handler: painel.api.criar_usuario
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+            - Effect: Allow
+              Action: [cognito-idp:AdminCreateUser, cognito-idp:AdminAddUserToGroup, cognito-idp:CreateGroup]
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: POST
+            Path: "/usuarios"
+
+  AtualizarUsuarioFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-atualizar-usuario"
+      Handler: painel.api.atualizar_usuario
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+            - Effect: Allow
+              Action: [cognito-idp:ListUsers, cognito-idp:AdminGetUser, cognito-idp:AdminListGroupsForUser, cognito-idp:AdminAddUserToGroup, cognito-idp:AdminRemoveUserFromGroup, cognito-idp:CreateGroup, cognito-idp:AdminDisableUser, cognito-idp:AdminEnableUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminCreateUser, cognito-idp:AdminUserGlobalSignOut]
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: PATCH
+            Path: "/usuarios/{id}"
+
+  ListarUsuariosLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListarUsuariosFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  CriarUsuarioLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CriarUsuarioFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  AtualizarUsuarioLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AtualizarUsuarioFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  # ---------------------------------------------------------------- ficha do atendimento e auditoria
+  VerVisitaFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-ver-visita"
+      Handler: painel.api.ver_visita
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [dynamodb:Query]
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+            - Effect: Allow
+              Action: [cognito-idp:AdminGetUser]
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: "/visits/{id}"
+
+  AuditoriaFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-auditoria"
+      Handler: painel.api.listar_auditoria
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Query, dynamodb:Scan]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+            - Effect: Allow
+              Action: [cognito-idp:ListUsers]
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: "/auditoria"
+
+  VerVisitaLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${VerVisitaFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  AuditoriaLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AuditoriaFn}"
       RetentionInDays: !Ref LogRetentionDays
   DashboardLogs:
     Type: AWS::Logs::LogGroup

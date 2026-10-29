@@ -22,7 +22,7 @@ from datetime import datetime
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
 
-from . import tempo
+from . import auditoria, tempo
 from .http import HttpError
 
 log = logging.getLogger()
@@ -238,6 +238,8 @@ def create_visit(caller, summary: dict, clinical: dict, duration_sec: int) -> di
             _counter_update(painel, pk_day(caller.unit_id, day), counters),
             _counter_update(painel, pk_month(caller.unit_id, month), counters),
             _audit(clinico, visit_id, caller, "create", {"status": summary["status"], "urgent": summary["urgent"]}),
+            # registro geral da administração: sem dado de paciente, só o protocolo
+            auditoria.put("visit_create", caller, target={"type": "visit", "id": visit_id, "label": protocol}),
         ]
     )
     return _public_visit(visit, caller.sub)
@@ -294,6 +296,8 @@ def update_visit(caller, visit_id: str, patch: dict) -> dict:
                     "status": [current["status"], new_status],
                     "urgent": [bool(current.get("urgent")), new_urgent],
                 }),
+                auditoria.put("visit_update", caller, target={"type": "visit", "id": visit_id, "label": current.get("protocol")},
+                              details={"status": [current["status"], new_status], "urgent": [bool(current.get("urgent")), new_urgent]}),
             ]
         )
     except _client.exceptions.TransactionCanceledException as exc:
@@ -303,3 +307,51 @@ def update_visit(caller, visit_id: str, patch: dict) -> dict:
         raise
 
     return _public_visit({**current, "status": new_status, "urgent": new_urgent}, caller.sub)
+
+
+# ---------- ficha do atendimento ----------
+
+ACTION_LABELS = {
+    "create": "Atendimento registrado",
+    "update": "Desfecho ou Red Flag alterado",
+    "referral_create": "Encaminhado a médico",
+    "referral_read": "Encaminhamento lido pelo médico",
+    "referral_answered": "Médico respondeu o encaminhamento",
+    "referral_declined": "Médico recusou o encaminhamento",
+    "referral_cancelled": "Encaminhamento cancelado",
+}
+
+
+def _actor_name(username: str) -> str:
+    try:
+        return pharmacist(username)["name"]
+    except Exception:  # noqa: BLE001 - usuário removido: mostra o que houver
+        return "Usuário removido"
+
+
+def visit_record(caller, visit_id: str) -> dict:
+    """Ficha completa de um atendimento da farmácia de quem pede: resumo, registro clínico e histórico."""
+    at = visit_instant(visit_id)
+    visit = _painel().get_item(Key={"PK": pk_day(caller.unit_id, tempo.day_key(at)), "SK": f"VISIT#{visit_id}"}).get("Item")
+    if not visit:
+        # inexistente ou de outra farmácia: mesma resposta
+        raise HttpError(404, "Atendimento não encontrado.")
+    items = _clinico().query(KeyConditionExpression=Key("PK").eq(f"VISIT#{visit_id}")).get("Items", [])
+    record = next((i for i in items if i["SK"] == "RECORD"), None)
+    if not record or record.get("unit") != caller.unit_id:
+        raise HttpError(404, "Atendimento não encontrado.")
+    history = sorted((i for i in items if i["SK"].startswith("AUDIT#")), key=lambda i: i["at"])
+    return {
+        "visit": _public_visit(visit, caller.sub),
+        "record": {k: v for k, v in record.items() if k not in ("PK", "SK", "unit", "createdBy")},
+        "history": [
+            {
+                "at": h["at"],
+                "action": h["action"],
+                "label": ACTION_LABELS.get(h["action"], h["action"]),
+                "actor": _actor_name(h.get("actorUsername", "")),
+                "changes": h.get("changes", {}),
+            }
+            for h in history
+        ],
+    }

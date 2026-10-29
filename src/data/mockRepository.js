@@ -14,6 +14,11 @@ const DEMO_DOCTORS = [
   { id: "demo-medico-2", name: "Dra. Carla Nunes" },
 ];
 let referrals = [];
+let demoUsers = [
+  { id: "demo-1", name: "Dra. Ana Souza", email: "ana@exemplo.com.br", cpf: "***.982.247-**", crf: "4192", roles: ["farmaceutico"], unit: "demo", enabled: true, pending: false },
+  { id: "demo-2", name: "Dr. Paulo Lima", email: "paulo@exemplo.com.br", cpf: "***.533.447-**", crf: null, roles: ["medico"], unit: null, enabled: true, pending: true },
+  { id: "demo-3", name: "Gestor Sincofarma", email: "gestor@exemplo.com.br", cpf: "***.444.777-**", crf: null, roles: ["admin"], unit: null, enabled: true, pending: false },
+];
 const referralSummary = (r) => ({
   id: r.id,
   createdAt: r.createdAt,
@@ -202,6 +207,58 @@ export const mockRepository = {
     const now = new Date().toISOString();
     const updated = { ...found, status, statusAt: now, ...(response ? { response, answeredAt: now } : {}) };
     referrals = referrals.map((r) => (r.id === id ? updated : r));
+    return updated;
+  },
+
+  /** Ficha do atendimento: a demonstração só guarda o resumo, então a ficha sai parcial. */
+  async getVisitRecord(id) {
+    await wait(LATENCY);
+    const visit = current().visits.find((v) => v.id === id);
+    if (!visit) throw new Error("Atendimento não encontrado.");
+    return {
+      visit,
+      record: {
+        protocol: visit.protocol,
+        at: visit.at,
+        patient: { name: visit.name, cpf: visit.cpf },
+        complaint: { text: visit.complaint },
+        history: { allergies: [], comorbidities: [], medications: [] },
+        vitals: {},
+        risk: visit.risk ?? null,
+        redFlags: visit.redFlags ?? [],
+        notes: visit.signs || null,
+      },
+      history: [{ at: visit.at, action: "create", label: "Atendimento registrado", actor: visit.rt || "Dra. Ana Souza", changes: {} }],
+    };
+  },
+
+  async listAudit(month) {
+    await wait(LATENCY);
+    return { month, events: [], next: null, units: [{ id: "demo", name: unit }] };
+  },
+
+  /* ---------- usuários (administração; em memória) ---------- */
+  async listUsers() {
+    await wait(LATENCY);
+    return { users: demoUsers, units: [{ id: "demo", name: unit }] };
+  },
+
+  async createUser({ cpf, name, email, roles, unit: unitId = null, crf = null }) {
+    await wait(LATENCY);
+    const masked = `***.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-**`;
+    const user = { id: `demo-${Date.now()}`, name, email, cpf: masked, crf, roles, unit: unitId, enabled: true, pending: true };
+    demoUsers = [...demoUsers, user].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    return user;
+  },
+
+  async updateUser(id, change) {
+    await wait(LATENCY / 2);
+    // reset do MFA e reenvio do convite não têm efeito na demonstração
+    const patch = Object.fromEntries(Object.entries(change).filter(([k]) => ["roles", "unit", "enabled"].includes(k)));
+    const found = demoUsers.find((u) => u.id === id);
+    if (!found) throw new Error("Usuário não encontrado.");
+    const updated = { ...found, ...patch };
+    demoUsers = demoUsers.map((u) => (u.id === id ? updated : u));
     return updated;
   },
 

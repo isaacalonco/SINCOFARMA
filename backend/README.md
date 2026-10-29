@@ -19,6 +19,7 @@ tests/                         pytest com DynamoDB e Cognito simulados
 |---|---|---|
 | GET | `/dashboard` | atendimentos de hoje + indicadores da unidade. Admin: `?unidade=<id>`, só agregados (`visits` vazio, resumo em `todaySummary`) |
 | POST | `/visits` | registra triagem: valida, emite protocolo, grava resumo, registro clínico e auditoria |
+| GET | `/visits/{id}` | ficha completa (registro clínico + histórico), só para farmacêutico da farmácia do atendimento |
 | PATCH | `/visits/{id}` | troca desfecho e/ou Red Flag, só de quem registrou (concorrência otimista + auditoria) |
 | POST | `/rnds/sync` | responde 501 até a integração com a RNDS existir |
 | GET | `/unidades` | farmácias cadastradas (`id`, `name`), só para a administração escolher no painel |
@@ -27,6 +28,11 @@ tests/                         pytest com DynamoDB e Cognito simulados
 | GET | `/encaminhamentos[?status=]` | farmacêutico: os da farmácia; médico: a caixa dele (resumos, sem ficha) |
 | GET | `/encaminhamentos/{id}` | detalhe com a ficha copiada no envio; a primeira abertura pelo médico marca `read` |
 | PATCH | `/encaminhamentos/{id}` | médico: `{ status: answered\|declined, response }`; farmácia: `{ status: cancelled }` |
+
+| GET | `/usuarios` | administração: usuários (CPF mascarado, perfis, farmácia, situação) e farmácias |
+| POST | `/usuarios` | administração cadastra: `{ cpf, name, email, roles, unit?, crf? }`; o Cognito envia a senha temporária |
+| PATCH | `/usuarios/{id}` | administração: `{ roles?, unit?, enabled?, resetMfa?, resendInvite? }` (ninguém desativa a si mesmo) |
+| GET | `/auditoria?mes=aaaa-mm` | administração: registro geral do mês, sem dados de paciente (paginado por `inicio`) |
 
 Todas exigem o **token de acesso** do Cognito no cabeçalho `Authorization`.
 
@@ -59,6 +65,15 @@ A farmácia pode cancelar (`cancelled`) enquanto não houver resposta. Mudanças
 - Toda ação (envio, leitura, resposta, recusa, cancelamento) entra na auditoria do atendimento.
 - Médico é cadastrado com `--papel medico` (sem unidade e sem CRF) e identificado pelo `sub` do Cognito.
 
+## Auditoria
+
+Duas camadas: a trilha detalhada de cada atendimento fica na tabela clínica (junto ao registro); o **registro
+geral** (`AUDIT#<mês>` na tabela painel) recebe toda ação — atendimento, encaminhamento, usuário — com autor,
+perfil, farmácia e protocolo, **sem nenhum dado de paciente**. É o que a tela Auditoria mostra.
+
+"Minha conta" e "Esqueci a senha" não passam pela API: usam direto o Cognito com o token da própria pessoa
+(`ChangePassword`, `AssociateSoftwareToken`/`VerifySoftwareToken`, `GlobalSignOut`, `ForgotPassword`).
+
 ## Dados
 
 - **Tabela painel**: resumo do atendimento (nome, CPF anonimizado, queixa, sinais, desfecho) e contadores.
@@ -72,7 +87,7 @@ A farmácia pode cancelar (`cancelled`) enquanto não houver resposta. Mudanças
 cd backend
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows
-.venv/Scripts/python -m pytest                               # 47 testes
+.venv/Scripts/python -m pytest                               # 67 testes
 .venv/Scripts/cfn-lint --regions sa-east-1 -- template.yaml
 ```
 

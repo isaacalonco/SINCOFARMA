@@ -12,6 +12,10 @@ const Dashboard = lazy(loaders.Dashboard);
 const NovaTriagem = lazy(loaders.NovaTriagem);
 const EmBreve = lazy(loaders.EmBreve);
 const SemAcesso = lazy(loaders.SemAcesso);
+const Usuarios = lazy(loaders.Usuarios);
+const MinhaConta = lazy(loaders.MinhaConta);
+const Ficha = lazy(loaders.Ficha);
+const Auditoria = lazy(loaders.Auditoria);
 
 /* Depois que o app estiver logado e ocioso, baixa as outras páginas em
    segundo plano para a troca de rota ser instantânea. */
@@ -57,6 +61,11 @@ const PAGINAS = [
   ["/encaminhamentos", <EmBreve title="Encaminhamentos" />],
   ["/farmacias", <EmBreve title="Farmácias" />],
   ["/relatorios", <EmBreve title="Relatórios" />],
+  ["/usuarios", <Usuarios />],
+  ["/minha-conta", <MinhaConta />],
+  ["/auditoria", <Auditoria />],
+  // rota com parâmetro: a permissão é a de "/ficha"
+  ["/ficha/:id", <Ficha />, "/ficha"],
 ];
 
 export default function App() {
@@ -77,8 +86,8 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          {PAGINAS.map(([path, page]) => (
-            <Route key={path} path={path} element={<Permitida path={path}>{page}</Permitida>} />
+          {PAGINAS.map(([path, page, perm = path]) => (
+            <Route key={path} path={path} element={<Permitida path={perm}>{page}</Permitida>} />
           ))}
           <Route path="/sem-acesso" element={<SemAcesso />} />
         </Route>

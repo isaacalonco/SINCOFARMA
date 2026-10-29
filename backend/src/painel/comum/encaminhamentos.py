@@ -17,6 +17,7 @@ import secrets
 
 from boto3.dynamodb.conditions import Key
 
+from . import auditoria
 from . import repositorio as repo
 from . import tempo
 from .http import HttpError
@@ -108,6 +109,11 @@ def _audit(ref: dict, caller, action: str, changes: dict) -> dict:
     return {"Put": {"TableName": os.environ["TABELA_CLINICO"], "Item": item}}
 
 
+def _target(ref: dict) -> dict:
+    """Alvo no registro geral: protocolo e médico, nunca o paciente."""
+    return {"type": "referral", "id": ref["id"], "label": ref.get("protocol"), "doctor": ref["doctor"]["name"]}
+
+
 def public(ref: dict, caller) -> dict:
     """Encaminhamento completo para quem pode vê-lo (sem chaves internas)."""
     out = {k: v for k, v in ref.items() if k not in ("PK", "SK")}
@@ -169,6 +175,7 @@ def create(caller, data: dict) -> dict:
             {"Put": {"TableName": table, "Item": {**med, **summary}}},
             {"Put": {"TableName": table, "Item": {**unit, **summary}}},
             _audit(ref, caller, "referral_create", {"doctor": doctor["id"], "priority": ref["priority"]}),
+            auditoria.put("referral_create", caller, unit=ref["unit"], target=_target(ref), details={"priority": ref["priority"]}),
         ]
     )
     return public(ref, caller)
@@ -213,6 +220,7 @@ def _set_status(ref: dict, caller, new: dict, action: str) -> dict:
                     for key in (med, unit)
                 ],
                 _audit(ref, caller, action, {"status": [ref["status"], new["status"]]}),
+                auditoria.put(action, caller, unit=ref["unit"], target=_target(ref), details={"status": [ref["status"], new["status"]]}),
             ]
         )
     except repo._client.exceptions.TransactionCanceledException as exc:

@@ -62,3 +62,26 @@ export function logout() {
 }
 
 export const getAccessToken = () => (AUTH_MODE === "cognito" ? session.getAccessToken() : Promise.resolve(null));
+
+/* ---------- Minha conta (Cognito com o token da própria pessoa) ---------- */
+
+const DEMO_BLOCK = () => Promise.reject(new Error("Indisponível na demonstração."));
+
+async function withToken(fn) {
+  const token = await session.getAccessToken();
+  if (!token) throw new Error("Sessão expirada. Entre novamente.");
+  return fn(token);
+}
+
+export const account = {
+  details: () => (AUTH_MODE === "cognito" ? withToken(cognito.getUser) : Promise.resolve({ email: "ana@exemplo.com.br" })),
+  changePassword: (previous, proposed) =>
+    AUTH_MODE === "cognito" ? withToken((t) => cognito.changePassword(t, previous, proposed)) : DEMO_BLOCK(),
+  startTotpChange: () => (AUTH_MODE === "cognito" ? withToken(cognito.startTotpChange) : DEMO_BLOCK()),
+  finishTotpChange: (code) => (AUTH_MODE === "cognito" ? withToken((t) => cognito.finishTotpChange(t, code)) : DEMO_BLOCK()),
+  /** Encerra em todos os aparelhos; depois disso esta aba também sai. */
+  signOutEverywhere: () => (AUTH_MODE === "cognito" ? withToken(cognito.globalSignOut) : Promise.resolve()),
+  forgotPassword: (identifier) => (AUTH_MODE === "cognito" ? cognito.forgotPassword(identifier) : DEMO_BLOCK()),
+  confirmForgotPassword: (identifier, code, password) =>
+    AUTH_MODE === "cognito" ? cognito.confirmForgotPassword(identifier, code, password) : DEMO_BLOCK(),
+};

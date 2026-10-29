@@ -1,12 +1,13 @@
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Clock, UserRound, Database, TriangleAlert } from "lucide-react";
+import { X, Clock, UserRound, Database, TriangleAlert, FileText } from "lucide-react";
 import { useClinic } from "../contexts/clinic";
 import { STATUS } from "../data/catalog";
 import { initials } from "../utils/initials";
 import { useFocusTrap, useModalBackdrop } from "../hooks/useFocusTrap";
 import { useAuth } from "../contexts/auth";
-import { podeAlterar } from "../services/permissoes";
+import { podeAlterar, podeRota } from "../services/permissoes";
+import { Link } from "react-router-dom";
 
 export default function VisitDrawer() {
   const { visits, selectedId, closeVisit, updateVisit, notify } = useClinic();
@@ -74,6 +75,12 @@ export default function VisitDrawer() {
             </header>
 
             <div className="drawer-body">
+              {podeRota(user, "/ficha") && (
+                <Link to={`/ficha/${visit.id}`} className="btn btn--ghost drawer-ficha" onClick={closeVisit}>
+                  <FileText size={16} /> Abrir ficha completa
+                </Link>
+              )}
+
               <dl className="meta-grid">
                 <div>
                   <dt><Clock size={14} /> Horário</dt>
