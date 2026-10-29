@@ -1,12 +1,18 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Construction, ArrowLeft } from "lucide-react";
 import SpotlightCard from "../../components/SpotlightCard";
 import { rise, press, pulse } from "../../utils/motion";
+import { useAuth } from "../../contexts/auth";
+import { rotaInicial } from "../../services/permissoes";
 
 const MotionLink = motion.create(Link);
 
 export default function EmBreve({ title }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  // a tela inicial depende do perfil; nela o botão não tem para onde voltar
+  const home = rotaInicial(user);
   return (
     <main className="dash-content">
       <section className="page-head">
@@ -50,11 +56,13 @@ export default function EmBreve({ title }) {
             transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
           />
         </motion.div>
-        <motion.div {...rise(3, 0.4)}>
-          <MotionLink to="/dashboard" className="btn btn--ghost" {...press}>
-            <ArrowLeft size={16} /> Voltar ao Dashboard
-          </MotionLink>
-        </motion.div>
+        {pathname !== home && (
+          <motion.div {...rise(3, 0.4)}>
+            <MotionLink to={home} className="btn btn--ghost" {...press}>
+              <ArrowLeft size={16} /> Voltar ao início
+            </MotionLink>
+          </motion.div>
+        )}
         <motion.span
           className="soon-glow"
           aria-hidden="true"

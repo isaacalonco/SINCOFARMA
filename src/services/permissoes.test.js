@@ -22,30 +22,30 @@ describe("papéis a partir dos grupos do Cognito", () => {
 });
 
 describe("o que cada perfil vê", () => {
-  it("farmacêutico: painel, triagem e encaminhamentos da unidade", () => {
-    expect(rotaInicial(farmaceutico)).toBe("/dashboard");
-    expect(podeRota(farmaceutico, "/nova-triagem")).toBe(true);
-    expect(podeRota(farmaceutico, "/encaminhamentos")).toBe(true);
-    expect(podeRota(farmaceutico, "/farmacias")).toBe(false);
+  const paginas = (u) =>
+    ["/dashboard", "/atendimentos", "/nova-triagem", "/encaminhamentos", "/farmacias", "/relatorios"].filter((p) => podeRota(u, p));
+
+  it("farmacêutico: atendimentos, nova triagem e encaminhamentos", () => {
+    expect(paginas(farmaceutico)).toEqual(["/atendimentos", "/nova-triagem", "/encaminhamentos"]);
+    expect(rotaInicial(farmaceutico)).toBe("/atendimentos");
   });
 
   it("médico: só encaminhamentos", () => {
+    expect(paginas(medico)).toEqual(["/encaminhamentos"]);
     expect(rotaInicial(medico)).toBe("/encaminhamentos");
-    expect(podeRota(medico, "/dashboard")).toBe(false);
-    expect(podeRota(medico, "/nova-triagem")).toBe(false);
     expect(pode(medico, "ver_atendimentos")).toBe(false);
   });
 
-  it("administração: gestão, sem dados de paciente", () => {
-    expect(rotaInicial(admin)).toBe("/farmacias");
-    expect(podeRota(admin, "/dashboard")).toBe(false);
-    expect(podeRota(admin, "/relatorios")).toBe(true);
+  it("administração: todas as páginas, mas sem dados de paciente nem registro", () => {
+    expect(paginas(admin)).toHaveLength(6);
+    expect(rotaInicial(admin)).toBe("/dashboard");
     expect(pode(admin, "ver_atendimentos")).toBe(false);
+    expect(pode(admin, "criar_triagem")).toBe(false);
   });
 
   it("papéis somam", () => {
-    expect(podeRota(rtAdmin, "/dashboard")).toBe(true);
-    expect(podeRota(rtAdmin, "/farmacias")).toBe(true);
+    expect(paginas(rtAdmin)).toHaveLength(6);
+    expect(pode(rtAdmin, "criar_triagem")).toBe(true);
   });
 
   it("sem papel: tela de sem acesso", () => {

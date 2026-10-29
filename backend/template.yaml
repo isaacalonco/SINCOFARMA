@@ -219,6 +219,27 @@ Resources:
           Type: HttpApi
           Properties: { ApiId: !Ref Api, Method: GET, Path: /dashboard }
 
+  UnidadesFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-unidades"
+      Handler: painel.api.listar_unidades
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:Scan # só os perfis das unidades (filtro no código)
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Get:
+          Type: HttpApi
+          Properties: { ApiId: !Ref Api, Method: GET, Path: /unidades }
+
   CriarVisitaFn:
     Type: AWS::Serverless::Function
     Properties:
@@ -283,6 +304,11 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${DashboardFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  UnidadesLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${UnidadesFn}"
       RetentionInDays: !Ref LogRetentionDays
   CriarVisitaLogs:
     Type: AWS::Logs::LogGroup

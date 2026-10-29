@@ -21,6 +21,7 @@ tests/                         pytest com DynamoDB e Cognito simulados
 | POST | `/visits` | registra triagem: valida, emite protocolo, grava resumo, registro clínico e auditoria |
 | PATCH | `/visits/{id}` | troca desfecho e/ou Red Flag, só de quem registrou (concorrência otimista + auditoria) |
 | POST | `/rnds/sync` | responde 501 até a integração com a RNDS existir |
+| GET | `/unidades` | farmácias cadastradas (`id`, `name`), só para a administração escolher no painel |
 
 Todas exigem o **token de acesso** do Cognito no cabeçalho `Authorization`.
 
@@ -33,11 +34,12 @@ A tabela é a de `src/painel/comum/auth.py`; o front espelha em `src/services/pe
 |---|---|---|---|
 | Unidade | obrigatória | não usa | não usa |
 | Atendimentos com dados do paciente | da própria unidade | só os encaminhados a ele (rotas a fazer) | nunca |
-| Indicadores | da própria unidade | não | de qualquer unidade (`?unidade=`) |
+| Indicadores | da própria unidade | não | de qualquer unidade (`?unidade=`, lista em `/unidades`) |
 | Registrar triagem | sim | não | não |
 | Mudar desfecho e Red Flag | só nos que registrou | não | não |
 
-Atendimentos chegam com `mine: true/false` (quem vê é quem registrou). Sem nenhum `papel:*` a API responde 403.
+Páginas do site por perfil (front): farmacêutico vê Atendimentos, Nova Triagem e Encaminhamentos; médico, só
+Encaminhamentos; administração, todas, mas só com números. Atendimentos chegam com `mine: true/false` (quem vê é quem registrou). Sem nenhum `papel:*` a API responde 403.
 
 ## Dados
 

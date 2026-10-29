@@ -64,6 +64,12 @@ function current() {
 export const mockRepository = {
   name: "mock",
 
+  // a demonstração tem uma farmácia só; `unit` é ignorado
+  async listUnits() {
+    await wait(LATENCY);
+    return [{ id: "demo", name: unit }];
+  },
+
   async loadDashboard() {
     await wait(LATENCY);
     return {

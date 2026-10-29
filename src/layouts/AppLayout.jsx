@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Menu, X, WifiOff, Pill, Stethoscope, Building2 } from "lucide-react";
+import { Search, Menu, X, WifiOff, PillBottle, Stethoscope, Building2, UserRound } from "lucide-react";
 import { useAuth } from "../contexts/auth";
 import { useClinic, useSearch } from "../contexts/clinic";
 import Sidebar from "../components/Sidebar";
 import VisitDrawer from "../components/VisitDrawer";
 import Toasts from "../components/Toasts";
 import IdleWarning from "../components/IdleWarning";
+import IntroSplash from "../components/IntroSplash";
 import { useIdleTimeout } from "../hooks/useIdleTimeout";
 import { DEMO_MODE, IDLE_MINUTES, IDLE_WARN_MS, idleTimeoutMs } from "../config/app";
 import { PAPEIS } from "../services/permissoes";
@@ -17,17 +18,41 @@ import "../styles/overlays.css";
 
 // páginas que exibem a tabela filtrada pela busca
 const SEARCHABLE = ["/dashboard"];
+const INTRO_KEY = "sinco:intro"; // gravado pelo Login
 
-// selo do tipo de conta no canto do topo (texto em services/permissoes.js)
+// selo do tipo de conta no canto do topo (nomes em services/permissoes.js).
+// A ordem decide ícone e cor de quem acumula papéis.
 const ROLE_BADGE = {
-  farmaceutico: { Icon: Pill, tone: "green" },
-  medico: { Icon: Stethoscope, tone: "blue" },
   admin: { Icon: Building2, tone: "purple" },
+  farmaceutico: { Icon: PillBottle, tone: "green" },
+  medico: { Icon: Stethoscope, tone: "blue" },
 };
+
+function accountBadge(roles = []) {
+  const own = Object.keys(ROLE_BADGE).filter((r) => roles.includes(r));
+  if (!own.length) return { Icon: UserRound, tone: "none", label: "Sem perfil" };
+  return { ...ROLE_BADGE[own[0]], label: own.map((r) => PAPEIS[r]).join(" + ") };
+}
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
-  const { online } = useClinic();
+  const { online, status } = useClinic();
+  // tela de entrada: só logo depois do login (o Login deixa o aviso na sessão)
+  const [intro, setIntro] = useState(() => {
+    try {
+      return sessionStorage.getItem(INTRO_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(INTRO_KEY);
+    } catch {
+      /* ignora */
+    }
+  }, []);
+  const endIntro = useCallback(() => setIntro(false), []);
   const { query, setQuery } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,7 +60,7 @@ export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const searchRef = useRef(null);
-  const roles = (user?.roles ?? []).filter((r) => ROLE_BADGE[r]);
+  const account = accountBadge(user?.roles);
 
   // atalho "/" foca a busca
   useEffect(() => {
@@ -163,21 +188,23 @@ export default function AppLayout() {
           </motion.label>
 
           {/* tipo de conta: deixa claro com que perfil a pessoa está vendo o painel */}
-          <div className="account-roles" aria-label="Tipo de conta">
-            {roles.length ? (
-              roles.map((r) => {
-                const { Icon, tone } = ROLE_BADGE[r];
-                return (
-                  <span key={r} className={`account-role account-role--${tone}`} title={PAPEIS[r]}>
-                    <Icon size={14} aria-hidden="true" />
-                    <span className="account-role-label">{PAPEIS[r]}</span>
-                  </span>
-                );
-              })
-            ) : (
-              <span className="account-role account-role--none">Sem perfil</span>
-            )}
-            {DEMO_MODE && <span className="account-role account-role--demo">Demonstração</span>}
+          <div
+            className={`account-chip account-chip--${account.tone}`}
+            role="status"
+            aria-label={`Tipo de conta: ${account.label}${DEMO_MODE ? " (demonstração)" : ""}`}
+            title={`Tipo de conta: ${account.label}`}
+          >
+            <span className="account-chip-icon" aria-hidden="true">
+              <account.Icon size={18} strokeWidth={2.2} />
+              {DEMO_MODE && <i className="account-chip-dot" />}
+            </span>
+            <span className="account-chip-text" aria-hidden="true">
+              <small>
+                Tipo de conta
+                {DEMO_MODE && <b className="account-chip-demo">Demo</b>}
+              </small>
+              <strong>{account.label}</strong>
+            </span>
           </div>
         </motion.div>
 
@@ -201,6 +228,9 @@ export default function AppLayout() {
 
       <VisitDrawer />
       <Toasts />
+      <AnimatePresence>
+        {intro && <IntroSplash key="intro" user={user} ready={status !== "loading"} onDone={endIntro} />}
+      </AnimatePresence>
       <IdleWarning
         open={idle.warning}
         remaining={idle.remaining}
