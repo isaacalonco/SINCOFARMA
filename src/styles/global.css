@@ -24,6 +24,21 @@ button, input { font-family: inherit; }
 /* o Edge põe o próprio olho (e um "x") nos campos de senha; o painel já tem o seu */
 input::-ms-reveal,
 input::-ms-clear { display: none; }
+/* barra de rolagem fina e arredondada no painel todo (Chrome/Edge/Safari) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(10, 37, 64, 0.22) padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(10, 37, 64, 0.4); }
+::-webkit-scrollbar-corner { background: transparent; }
+/* Firefox não tem os seletores acima */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(10, 37, 64, 0.25) transparent; }
+}
+
 /* utilitário: visível só para leitores de tela */
 .sr-only {
   position: absolute;
