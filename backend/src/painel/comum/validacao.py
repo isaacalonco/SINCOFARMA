@@ -391,3 +391,54 @@ def validar_mudanca_usuario(body: dict) -> dict:
             out[flag] = body[flag]
     erros.raise_if_any()
     return out
+
+
+# ---------------------------------------------------------------- LGPD
+
+LGPD_TIPOS = ("correcao", "exclusao")
+LGPD_RESPOSTAS = ("concluido", "recusado")
+
+
+def validar_pedido_lgpd(body: dict) -> dict:
+    """POST /me/pedidos: tipo e o que corrigir (a exclusão pode vir sem texto)."""
+    erros = Erros()
+    tipo = body.get("type")
+    if tipo not in LGPD_TIPOS:
+        erros.add("type", "Escolha correção ou exclusão.")
+    detalhes = body.get("details")
+    if detalhes is not None and not isinstance(detalhes, str):
+        erros.add("details", "Texto inválido.")
+        detalhes = None
+    detalhes = (detalhes or "").strip()
+    if tipo == "correcao" and len(detalhes) < 5:
+        erros.add("details", "Diga o que precisa ser corrigido.")
+    if len(detalhes) > 1000:
+        erros.add("details", "Use no máximo 1.000 caracteres.")
+    erros.raise_if_any()
+    return {"type": tipo, "details": detalhes}
+
+
+def validar_resposta_lgpd(pedido_id: str, body: dict) -> dict:
+    """PATCH /lgpd/pedidos/{id}: concluir ou recusar, sempre com uma resposta ao titular."""
+    if not VISIT_ID.match(pedido_id or ""):
+        raise HttpError(404, "Pedido não encontrado.")
+    erros = Erros()
+    status = body.get("status")
+    if status not in LGPD_RESPOSTAS:
+        erros.add("status", "Escolha concluir ou recusar.")
+    resposta = body.get("response")
+    resposta = resposta.strip() if isinstance(resposta, str) else ""
+    if len(resposta) < 3:
+        erros.add("response", "Escreva a resposta ao titular.")
+    if len(resposta) > 1000:
+        erros.add("response", "Use no máximo 1.000 caracteres.")
+    erros.raise_if_any()
+    return {"status": status, "response": resposta}
+
+
+def validar_cpf_titular(body: dict) -> str:
+    """POST /lgpd/pacientes: o CPF vai no corpo, nunca na URL (que aparece em logs)."""
+    cpf = only_digits(body.get("cpf"))
+    if not is_valid_cpf(cpf):
+        raise HttpError(422, "CPF inválido.", {"fields": {"cpf": "CPF inválido."}})
+    return cpf

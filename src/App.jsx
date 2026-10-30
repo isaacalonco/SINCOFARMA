@@ -16,6 +16,8 @@ const Usuarios = lazy(loaders.Usuarios);
 const MinhaConta = lazy(loaders.MinhaConta);
 const Ficha = lazy(loaders.Ficha);
 const Auditoria = lazy(loaders.Auditoria);
+const PedidosLgpd = lazy(loaders.PedidosLgpd);
+const Privacidade = lazy(loaders.Privacidade);
 
 /* Depois que o app estiver logado e ocioso, baixa as outras páginas em
    segundo plano para a troca de rota ser instantânea. */
@@ -64,6 +66,7 @@ const PAGINAS = [
   ["/usuarios", <Usuarios />],
   ["/minha-conta", <MinhaConta />],
   ["/auditoria", <Auditoria />],
+  ["/privacidade-lgpd", <PedidosLgpd />],
   // rota com parâmetro: a permissão é a de "/ficha"
   ["/ficha/:id", <Ficha />, "/ficha"],
 ];
@@ -76,6 +79,8 @@ export default function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+        {/* política de privacidade: aberta para todos, logado ou não (LGPD, art. 9º) */}
+        <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/" element={<Inicio />} />
         <Route
           element={

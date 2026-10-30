@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useAnimate } from "framer-motion";
 import {
   ShieldCheck,
@@ -19,6 +19,8 @@ import { totpUri } from "../../services/cognito";
 import { useAuth } from "../../contexts/auth";
 import logo from "../../assets/logo-sincofarma.webp";
 import LightBeams from "../../components/LightBeams";
+import MeshBackground from "../../components/MeshBackground";
+import { useMotionPrefs } from "../../contexts/motionPrefsContext";
 import { warmMark } from "../../components/glassLogo";
 import { EASE, pulse, rise as riseBase } from "../../utils/motion";
 import { useSpotlightTilt } from "../../hooks/useSpotlightTilt";
@@ -32,6 +34,7 @@ const rise = (i) => riseBase(i, 0.35);
 export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const { reduced: reducedMotion } = useMotionPrefs();
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(null);
   const [error, setError] = useState("");
@@ -188,6 +191,8 @@ export default function Login() {
 
       <main className="login-main">
         <div className="login-bg" aria-hidden="true">
+          {/* malha de azuis em movimento lento, por baixo dos brilhos */}
+          <MeshBackground still={reducedMotion} />
           <div className="bg-noise" />
           <div className="glow glow--top" />
           <motion.div
@@ -261,10 +266,13 @@ export default function Login() {
               </motion.div>
 
               <motion.h1 {...rise(0)}>Acesso Institucional</motion.h1>
-              <motion.p className="login-subtitle" {...rise(1)}>
-                Ambiente restrito a Farmacêuticos Responsáveis Técnicos (RT) e
-                Gestores Homologados CRF-DF.
-              </motion.p>
+              {/* nas etapas extras (senha nova, app autenticador) o card precisa do espaço */}
+              {!challenge && (
+                <motion.p className="login-subtitle" {...rise(1)}>
+                  Ambiente restrito a Farmacêuticos Responsáveis Técnicos (RT) e
+                  Gestores Homologados CRF-DF.
+                </motion.p>
+              )}
 
               <motion.hr
                 initial={{ scaleX: 0, opacity: 0 }}
@@ -308,15 +316,22 @@ export default function Login() {
                   >
                     {challenge.type === "MFA_SETUP" ? (
                       <>
-                        <p className="login-idle" role="status">
-                          Verificação em duas etapas: abra um app autenticador (Google Authenticator,
-                          Microsoft Authenticator ou similar), leia o QR code e digite o código gerado.
-                        </p>
-                        <img className="mfa-qr" src={challenge.qr} alt="QR code para o app autenticador" width={176} height={176} />
-                        <p className="mfa-secret">
-                          Sem câmera? Digite esta chave no app:
+                        <h2 className="mfa-title" role="status">Ative a verificação em duas etapas</h2>
+                        <div className="mfa-setup">
+                          <div className="mfa-qr">
+                            <img src={challenge.qr} alt="QR code para o app autenticador" width={132} height={132} />
+                          </div>
+                          <ol className="mfa-steps">
+                            <li>Abra o Google ou o Microsoft Authenticator.</li>
+                            <li>Leia o QR code com a câmera do app.</li>
+                            <li>Digite abaixo o código de 6 números.</li>
+                          </ol>
+                        </div>
+                        {/* a chave fica recolhida: quase todo mundo usa a câmera */}
+                        <details className="mfa-secret">
+                          <summary>Sem câmera? Digitar a chave no app</summary>
                           <code>{challenge.secret.match(/.{1,4}/g).join(" ")}</code>
-                        </p>
+                        </details>
                       </>
                     ) : (
                       <p className="login-idle" role="status">
@@ -328,6 +343,7 @@ export default function Login() {
                       <Smartphone size={18} className="input-icon" />
                       <input
                         id="mfa-code"
+                        className="mfa-code"
                         type="text"
                         inputMode="numeric"
                         autoComplete="one-time-code"
@@ -643,6 +659,10 @@ export default function Login() {
                   </p>
                 </motion.div>
               )}
+
+              <motion.p className="login-policy" {...rise(9)}>
+                <Link to="/privacidade">Política de privacidade</Link>
+              </motion.p>
             </section>
           </motion.div>
         </motion.div>

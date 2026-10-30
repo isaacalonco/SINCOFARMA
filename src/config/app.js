@@ -2,7 +2,7 @@
 import { HAS_API } from "../data";
 
 /** Rotas com página funcional. As demais mostram "Módulo em construção". */
-export const ROUTES_READY = new Set(["/dashboard", "/nova-triagem", "/usuarios", "/minha-conta", "/auditoria"]);
+export const ROUTES_READY = new Set(["/dashboard", "/nova-triagem", "/usuarios", "/minha-conta", "/auditoria", "/privacidade-lgpd"]);
 export const isReady = (path) => ROUTES_READY.has(path);
 
 /**
@@ -12,6 +12,19 @@ export const isReady = (path) => ROUTES_READY.has(path);
 export const COMPLIANCE = {
   icpBrasil: false,
   lgpd: false,
+};
+
+/**
+ * Política de privacidade (LGPD, art. 9º e 41). O encarregado de dados ainda não foi
+ * nomeado: defina VITE_DPO_NOME e VITE_DPO_EMAIL na Vercel quando o Sincofarma nomear.
+ */
+export const PRIVACIDADE = {
+  controlador: "Sincofarma DF — Sindicato do Comércio Varejista de Produtos Farmacêuticos do Distrito Federal",
+  encarregado: {
+    nome: import.meta.env.VITE_DPO_NOME || null,
+    email: import.meta.env.VITE_DPO_EMAIL || null,
+  },
+  atualizadaEm: "2026-10-29",
 };
 
 /** Minutos sem atividade até encerrar a sessão (computador compartilhado de balcão). */

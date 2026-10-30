@@ -18,6 +18,13 @@
 //   POST  /usuarios       { cpf, name, email, roles, unit?, crf? } -> usuário (convite por e-mail)
 //   PATCH /usuarios/:id   { roles?, unit?, enabled?, resetMfa?, resendInvite? } -> usuário
 //   GET   /auditoria[?mes=aaaa-mm&inicio=] -> { month, events, next, units } (administração; sem dados de paciente)
+// LGPD (direitos do titular):
+//   GET   /me/dados                -> tudo o que o painel guarda sobre quem pede (JSON para baixar)
+//   GET   /me/pedidos              -> { requests }            (os próprios pedidos)
+//   POST  /me/pedidos              { type: correcao|exclusao, details } -> pedido
+//   GET   /lgpd/pedidos[?status=]  -> { requests }            (administração)
+//   PATCH /lgpd/pedidos/:id        { status: concluido|recusado, response } -> pedido (concluir exclusão anonimiza a conta)
+//   POST  /lgpd/pacientes          { cpf } -> dados do paciente (administração; CPF no corpo, nunca na URL)
 import { api } from "../services/api";
 
 export const apiRepository = {
@@ -38,6 +45,13 @@ export const apiRepository = {
   listUsers: () => api("/usuarios"),
   createUser: (data) => api("/usuarios", { method: "POST", body: JSON.stringify(data) }),
   updateUser: (id, change) => api(`/usuarios/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(change) }),
+  getMyData: () => api("/me/dados", { timeout: 30000 }),
+  listMyRequests: () => api("/me/pedidos").then((r) => r.requests),
+  createMyRequest: (data) => api("/me/pedidos", { method: "POST", body: JSON.stringify(data) }),
+  listPrivacyRequests: (status) => api(status ? `/lgpd/pedidos?status=${encodeURIComponent(status)}` : "/lgpd/pedidos").then((r) => r.requests),
+  answerPrivacyRequest: (id, change) =>
+    api(`/lgpd/pedidos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(change), timeout: 60000 }),
+  exportPatient: (cpf) => api("/lgpd/pacientes", { method: "POST", body: JSON.stringify({ cpf }), timeout: 30000 }),
   reset: () => Promise.reject(new Error("Indisponível com backend real.")),
   clear: () => {},
 };

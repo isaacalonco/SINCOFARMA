@@ -5,6 +5,7 @@ Tudo na tabela CLINICO (dados de saúde, chave KMS própria):
   MED#<sub do médico>  REF#<criado>#<id>    caixa de entrada do médico (resumo)
   UNIT#<u>#REF         REF#<criado>#<id>    encaminhamentos da farmácia (resumo)
   VISIT#<id>           AUDIT#...            auditoria, junto à do atendimento
+  PAC#<cpf>            REF#<id>             índice do paciente (pedidos da LGPD)
 
 O médico recebe a ficha copiada no momento do envio: lê só o que foi encaminhado a ele,
 nunca o registro clínico da farmácia. Estados: sent -> read -> answered | declined;
@@ -100,7 +101,6 @@ def _audit(ref: dict, caller, action: str, changes: dict) -> dict:
         "action": action,
         "at": at,
         "actorSub": caller.sub,
-        "actorUsername": caller.username,
         "unit": ref["unit"],
         "referral": ref["id"],
         "changes": changes,
@@ -175,6 +175,7 @@ def create(caller, data: dict) -> dict:
             {"Put": {"TableName": table, "Item": {**med, **summary}}},
             {"Put": {"TableName": table, "Item": {**unit, **summary}}},
             _audit(ref, caller, "referral_create", {"doctor": doctor["id"], "priority": ref["priority"]}),
+            repo.patient_index(patient["cpf"], "REF", ref["id"], ref["unit"], ref["createdAt"]),
             auditoria.put("referral_create", caller, unit=ref["unit"], target=_target(ref), details={"priority": ref["priority"]}),
         ]
     )

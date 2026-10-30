@@ -27,6 +27,10 @@ const PERMISSOES = {
   responder_encaminhamento: ["medico"],
   gerenciar_usuarios: ["admin"],
   ver_auditoria: ["admin"],
+  // LGPD: baixar os próprios dados e pedir correção ou exclusão (todo perfil)
+  exercer_direitos: ["farmaceutico", "medico", "admin"],
+  // LGPD: responder pedidos e exportar os dados de um paciente
+  atender_titulares: ["admin"],
 };
 
 /** O usuário tem a permissão? `user.roles` vem do login (grupos `papel:*`). */
@@ -57,6 +61,8 @@ const ROTAS = {
   "/relatorios": ["admin"],
   "/usuarios": ["admin"],
   "/auditoria": ["admin"],
+  // pedidos dos titulares (usuários e pacientes)
+  "/privacidade-lgpd": ["admin"],
   // ficha completa de um atendimento (/ficha/:id): só a farmácia dele
   "/ficha": ["farmaceutico"],
   // a própria conta: todo perfil (fica por último para nunca ser a tela inicial)

@@ -20,6 +20,10 @@ body {
 }
 
 button, input { font-family: inherit; }
+
+/* o Edge põe o próprio olho (e um "x") nos campos de senha; o painel já tem o seu */
+input::-ms-reveal,
+input::-ms-clear { display: none; }
 /* utilitário: visível só para leitores de tela */
 .sr-only {
   position: absolute;

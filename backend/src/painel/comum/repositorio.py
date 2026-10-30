@@ -10,6 +10,7 @@ Tabela PAINEL (resumos e agregados, por unidade):
 Tabela CLINICO (dados pessoais e clinicos completos, chave KMS propria):
   VISIT#<id>  RECORD                     registro clinico
   VISIT#<id>  AUDIT#<iso>#<rand>         trilha de auditoria (quem fez o que, quando)
+  PAC#<cpf>   VISIT#<id>                 índice do paciente (pedidos da LGPD, comum/lgpd.py)
 """
 
 import json
@@ -168,6 +169,31 @@ def pharmacist(username: str) -> dict:
     return _name_cache[username]
 
 
+def forget_name(username: str) -> None:
+    _name_cache.pop(username, None)
+
+
+_sub_names: dict[str, str] = {}
+
+
+def name_of_sub(sub: str) -> str:
+    """Nome de quem tem este código interno; conta removida vira "Usuário removido"."""
+    if sub not in _sub_names:
+        users = _cognito.list_users(UserPoolId=os.environ["USER_POOL_ID"], Filter=f'sub = "{sub}"', Limit=1).get("Users", [])
+        attrs = {a["Name"]: a["Value"] for a in (users[0].get("Attributes", []) if users else [])}
+        if not users:
+            return "Usuário removido"
+        _sub_names[sub] = attrs.get("name") or "(sem nome)"
+    return _sub_names[sub]
+
+
+def patient_index(cpf: str, kind: str, item_id: str, unit: str, at: str) -> dict:
+    """Item do índice PAC#<cpf> (VISIT ou REF) para a mesma transação do registro."""
+    return {"Put": {"TableName": os.environ["TABELA_CLINICO"], "Item": {
+        "PK": f"PAC#{cpf}", "SK": f"{kind}#{item_id}", "unit": unit, "at": at,
+    }}}
+
+
 def _counter_update(table: str, pk: str, deltas: dict[str, int]) -> dict:
     deltas = {k: v for k, v in deltas.items() if v}
     names = {f"#c{i}": k for i, k in enumerate(deltas)}
@@ -191,8 +217,8 @@ def _audit(table: str, visit_id: str, caller, action: str, changes: dict) -> dic
         "SK": f"AUDIT#{at}#{secrets.token_hex(3)}",
         "action": action,
         "at": at,
+        # só o código interno: o login (CPF) de quem agiu não vai para a trilha
         "actorSub": caller.sub,
-        "actorUsername": caller.username,
         "unit": caller.unit_id,
         "changes": changes,
     }
@@ -238,6 +264,7 @@ def create_visit(caller, summary: dict, clinical: dict, duration_sec: int) -> di
             _counter_update(painel, pk_day(caller.unit_id, day), counters),
             _counter_update(painel, pk_month(caller.unit_id, month), counters),
             _audit(clinico, visit_id, caller, "create", {"status": summary["status"], "urgent": summary["urgent"]}),
+            patient_index(clinical["patient"]["cpf"], "VISIT", visit_id, caller.unit_id, at.isoformat()),
             # registro geral da administração: sem dado de paciente, só o protocolo
             auditoria.put("visit_create", caller, target={"type": "visit", "id": visit_id, "label": protocol}),
         ]
@@ -322,9 +349,11 @@ ACTION_LABELS = {
 }
 
 
-def _actor_name(username: str) -> str:
+def _actor_name(entry: dict) -> str:
     try:
-        return pharmacist(username)["name"]
+        if entry.get("actorUsername"):  # trilhas antigas, de antes de o CPF sair da auditoria
+            return pharmacist(entry["actorUsername"])["name"]
+        return name_of_sub(entry.get("actorSub", ""))
     except Exception:  # noqa: BLE001 - usuário removido: mostra o que houver
         return "Usuário removido"
 
@@ -341,6 +370,8 @@ def visit_record(caller, visit_id: str) -> dict:
     if not record or record.get("unit") != caller.unit_id:
         raise HttpError(404, "Atendimento não encontrado.")
     history = sorted((i for i in items if i["SK"].startswith("AUDIT#")), key=lambda i: i["at"])
+    # abrir a ficha (CPF, telefone, dados de saúde) também fica registrado (LGPD, art. 37)
+    auditoria.record("visit_read", caller, target={"type": "visit", "id": visit_id, "label": record.get("protocol")})
     return {
         "visit": _public_visit(visit, caller.sub),
         "record": {k: v for k, v in record.items() if k not in ("PK", "SK", "unit", "createdBy")},
@@ -349,7 +380,7 @@ def visit_record(caller, visit_id: str) -> dict:
                 "at": h["at"],
                 "action": h["action"],
                 "label": ACTION_LABELS.get(h["action"], h["action"]),
-                "actor": _actor_name(h.get("actorUsername", "")),
+                "actor": _actor_name(h),
                 "changes": h.get("changes", {}),
             }
             for h in history

@@ -1,0 +1,69 @@
+/* ---------- Privacidade (LGPD), administração ---------- */
+.lgpd-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.lgpd-admin-card { display: grid; gap: 14px; padding: 20px; }
+.audit-note a { color: inherit; font-weight: 600; }
+
+.lgpd-tabs { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--soft); border: 1px solid var(--line); }
+.lgpd-tabs button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+.lgpd-tabs button.is-on { background: #fff; color: var(--blue-900); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+
+.lgpd-empty { display: flex; align-items: center; gap: 8px; padding: 18px 4px; font-size: 13.5px; color: var(--muted); }
+.lgpd-list { display: grid; gap: 10px; list-style: none; }
+.lgpd-item { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.lgpd-item-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.lgpd-item-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--soft); color: var(--blue-700); }
+.lgpd-item-icon.is-danger { background: #fee2e2; color: #b91c1c; }
+.lgpd-item-text { display: grid; gap: 2px; min-width: 0; }
+.lgpd-item-text strong { font-size: 14px; color: var(--blue-900); }
+.lgpd-item-text small { font-size: 12.5px; color: var(--muted); }
+.lgpd-item-details { font-size: 13.5px; line-height: 1.5; color: #334155; font-style: italic; }
+.lgpd-item-response { font-size: 13px; line-height: 1.5; color: #334155; }
+.lgpd-status { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.lgpd-status--amber { background: #fef3c7; color: #92400e; }
+.lgpd-status--green { background: #dcfce7; color: #166534; }
+.lgpd-status--red { background: #fee2e2; color: #991b1b; }
+
+.lgpd-answer { display: grid; gap: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.lgpd-answer textarea { resize: vertical; min-height: 72px; }
+.lgpd-warn {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #991b1b;
+}
+.lgpd-warn svg { flex-shrink: 0; margin-top: 2px; }
+.lgpd-hint { font-size: 12.5px; color: var(--muted); }
+
+.lgpd-steps { display: grid; gap: 6px; padding-left: 20px; font-size: 13px; line-height: 1.45; color: #334155; }
+.lgpd-steps li::marker { font-weight: 700; color: var(--blue-700); }
+.lgpd-last { padding: 10px 12px; border-radius: 10px; background: #ecfdf3; border: 1px solid #bfe9d0; font-size: 13px; color: #166534; }
+
+@media (max-width: 1000px) {
+  .lgpd-admin-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* formulários e ações (a página não carrega o CSS da Minha conta) */
+.lgpd-form { display: grid; gap: 12px; }
+.lgpd-form .field span, .lgpd-answer .field span { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--text); }
+.lgpd-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.lgpd-error { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #b91c1c; }

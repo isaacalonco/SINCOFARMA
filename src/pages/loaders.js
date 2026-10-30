@@ -11,7 +11,9 @@ export const loaders = {
   MinhaConta: () => import("./MinhaConta/MinhaConta"),
   Ficha: () => import("./Ficha/Ficha"),
   Auditoria: () => import("./Auditoria/Auditoria"),
+  PedidosLgpd: () => import("./PedidosLgpd/PedidosLgpd"),
+  Privacidade: () => import("./Privacidade/Privacidade"),
 };
 
 /** Páginas internas (tudo menos o login). */
-export const appPages = [loaders.Dashboard, loaders.NovaTriagem, loaders.EmBreve, loaders.SemAcesso, loaders.Usuarios, loaders.MinhaConta, loaders.Ficha, loaders.Auditoria];
+export const appPages = [loaders.Dashboard, loaders.NovaTriagem, loaders.EmBreve, loaders.SemAcesso, loaders.Usuarios, loaders.MinhaConta, loaders.Ficha, loaders.Auditoria, loaders.PedidosLgpd];
