@@ -1,50 +1,128 @@
-/* ---------- Política de privacidade (pública) ---------- */
-.policy-page { min-height: 100vh; background: #f3f6fa; color: #0f172a; }
-.policy-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px clamp(16px, 4vw, 40px);
+/* ---------- Política de privacidade (pública) ----------
+   Usa a casca das telas internas (.dash, .topbar, .dash-content, .card), só que
+   sem a barra lateral, porque a página abre também sem login. */
+.dash.policy-page { display: block; }
+.policy-topbar { justify-content: space-between; }
+.policy-logo { height: 40px; width: auto; display: block; }
+.policy-back { text-decoration: none; }
+
+.policy-updated {
+  padding: 6px 12px;
+  border-radius: 999px;
   background: #fff;
-  border-bottom: 1px solid #3aa0e8;
-}
-.policy-header img { height: clamp(40px, 5vw, 52px); width: auto; display: block; }
-.policy-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
+  border: 1px solid var(--line);
+  font-size: 12.5px;
   font-weight: 600;
-  color: #004a80;
-  text-decoration: none;
+  color: var(--muted);
 }
-.policy-back:hover { text-decoration: underline; }
 
-.policy {
-  max-width: 760px;
-  margin: 32px auto 64px;
-  padding: clamp(20px, 4vw, 40px);
-  border: 1px solid #e6ebf2;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 18px 40px -30px rgba(10, 37, 64, 0.4);
+.policy-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  color: #166534;
+  font-size: 14px;
+  line-height: 1.5;
 }
-.policy h1 { font-size: clamp(24px, 4vw, 30px); letter-spacing: -0.01em; color: #0a2540; }
-.policy-date { margin-top: 6px; font-size: 13.5px; color: #64748b; }
-.policy section { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e6ebf2; }
-.policy h2 { font-size: 18px; color: #0a2540; }
-.policy h3 { margin-top: 14px; font-size: 14px; color: #004a80; }
-.policy p, .policy li { font-size: 14.5px; line-height: 1.65; color: #334155; }
-.policy p { margin-top: 8px; }
-.policy ul { display: grid; gap: 6px; margin-top: 8px; padding-left: 20px; }
-.policy a { color: #1e6fb5; }
-.policy b { color: #0f172a; }
+.policy-banner svg { flex-shrink: 0; margin-top: 2px; }
 
-@media (max-width: 560px) {
-  .policy { margin: 16px; }
-  .policy-back { font-size: 13px; }
+/* dois cartões por linha; os largos ocupam a linha toda e "dense" fecha os buracos */
+.policy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row dense;
+  gap: 16px;
+  align-items: start;
+}
+.policy-card { padding: 20px; scroll-margin-top: 90px; }
+.policy-card--wide { grid-column: 1 / -1; }
+.policy-card-head { display: flex; align-items: flex-start; gap: 12px; }
+.policy-card-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--blue-700);
+}
+.policy-card-head h2 { font-size: 17px; font-weight: 700; color: var(--blue-900); }
+.policy-card-head p { margin-top: 2px; font-size: 13px; color: var(--muted); }
+
+.policy-card p, .policy-card li, .policy-card dd { font-size: 14px; line-height: 1.6; color: #475569; }
+.policy-card > p { margin-top: 14px; }
+.policy-card a { color: var(--blue-500); }
+.policy-card b { color: var(--text); font-weight: 600; }
+
+.policy-callout {
+  display: grid;
+  gap: 2px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #475569;
+}
+.policy-callout b { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue-700); }
+
+.policy-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.policy-box { padding: 14px 16px; border-radius: 10px; background: var(--soft); border: 1px solid var(--line); }
+.policy-box h3 { font-size: 14px; font-weight: 700; color: var(--blue-900); }
+.policy-box small { display: block; margin-top: 1px; font-size: 12px; color: var(--muted); }
+.policy-box p { margin-top: 6px; }
+.policy-box ul { display: grid; gap: 6px; margin-top: 8px; padding-left: 18px; }
+.policy-box li::marker { color: var(--blue-500); }
+
+.policy-defs { display: grid; gap: 0; margin-top: 10px; }
+.policy-defs > div { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.policy-defs > div:last-child { border-bottom: 0; }
+.policy-defs dt { font-size: 14px; font-weight: 600; color: var(--blue-900); }
+.policy-card .policy-law {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e0f0fb;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--blue-700);
+}
+
+.policy-rows { display: grid; margin-top: 10px; list-style: none; }
+.policy-rows li { display: grid; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.policy-rows li:last-child { border-bottom: 0; }
+
+.policy-checks { display: grid; gap: 8px; margin-top: 14px; list-style: none; }
+.policy-checks li { position: relative; padding-left: 28px; }
+.policy-checks li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 1px solid var(--green-200);
+  background: var(--green-50) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23166534' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 11px no-repeat;
+}
+
+.policy-card .policy-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.policy-note svg { flex-shrink: 0; margin-top: 3px; color: var(--blue-500); }
+
+@media (max-width: 900px) {
+  .policy-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 620px) {
+  .policy-split { grid-template-columns: minmax(0, 1fr); }
+  .policy-back { padding: 0 12px; font-size: 13px; }
+  .policy-logo { height: 32px; }
 }
