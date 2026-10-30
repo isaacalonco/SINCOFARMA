@@ -10,6 +10,7 @@ import {
   ChartColumn,
   UsersRound,
   ScrollText,
+  ShieldCheck,
   LogOut,
   X,
 } from "lucide-react";
@@ -68,6 +69,7 @@ export default function Sidebar({ open, onClose, user, onSignOut }) {
         { label: "Relatórios", icon: ChartColumn, to: "/relatorios" },
         { label: "Usuários", icon: UsersRound, to: "/usuarios" },
         { label: "Auditoria", icon: ScrollText, to: "/auditoria" },
+        { label: "Privacidade (LGPD)", icon: ShieldCheck, to: "/privacidade-lgpd" },
       ],
     },
   ];

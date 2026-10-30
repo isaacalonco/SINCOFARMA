@@ -14,6 +14,8 @@ const DEMO_DOCTORS = [
   { id: "demo-medico-2", name: "Dra. Carla Nunes" },
 ];
 let referrals = [];
+// pedidos de privacidade (LGPD) da demonstração
+let privacyRequests = [];
 let demoUsers = [
   { id: "demo-1", name: "Dra. Ana Souza", email: "ana@exemplo.com.br", cpf: "***.982.247-**", crf: "4192", roles: ["farmaceutico"], unit: "demo", enabled: true, pending: false },
   { id: "demo-2", name: "Dr. Paulo Lima", email: "paulo@exemplo.com.br", cpf: "***.533.447-**", crf: null, roles: ["medico"], unit: null, enabled: true, pending: true },
@@ -260,6 +262,62 @@ export const mockRepository = {
     const updated = { ...found, ...patch };
     demoUsers = demoUsers.map((u) => (u.id === id ? updated : u));
     return updated;
+  },
+
+  /* ---------- LGPD (em memória) ---------- */
+  async getMyData() {
+    await wait(LATENCY);
+    return {
+      geradoEm: new Date().toISOString(),
+      titular: "usuario",
+      conta: { nome: "Dra. Ana Souza", email: "ana@exemplo.com.br", cpf: "(demonstração)", crf: "4192", perfis: ["Farmacêutico"], farmacia: unit },
+      atividade: [],
+      pedidosDePrivacidade: privacyRequests,
+      observacoes: ["Arquivo de demonstração: dados fictícios."],
+    };
+  },
+
+  async listMyRequests() {
+    await wait(LATENCY / 2);
+    return privacyRequests;
+  },
+
+  async createMyRequest({ type, details = "" }) {
+    await wait(LATENCY);
+    if (privacyRequests.some((p) => p.type === type && p.status === "aberto")) {
+      throw new Error("Você já tem um pedido deste tipo em análise.");
+    }
+    const req = {
+      id: `demo-${Date.now()}`,
+      at: new Date().toISOString(),
+      type,
+      details,
+      status: "aberto",
+      response: null,
+      resolvedAt: null,
+      subject: { kind: "user", sub: "demo-1", name: "Dra. Ana Souza" },
+    };
+    privacyRequests = [req, ...privacyRequests];
+    return req;
+  },
+
+  async listPrivacyRequests(status) {
+    await wait(LATENCY / 2);
+    return status ? privacyRequests.filter((p) => p.status === status) : privacyRequests;
+  },
+
+  async answerPrivacyRequest(id, { status, response }) {
+    await wait(LATENCY);
+    const found = privacyRequests.find((p) => p.id === id);
+    if (!found) throw new Error("Pedido não encontrado.");
+    const updated = { ...found, status, response, resolvedAt: new Date().toISOString() };
+    privacyRequests = privacyRequests.map((p) => (p.id === id ? updated : p));
+    return updated;
+  },
+
+  async exportPatient() {
+    await wait(LATENCY);
+    throw new Error("Na demonstração não há pacientes reais para exportar.");
   },
 
   async reset() {

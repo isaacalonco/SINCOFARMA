@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   KeyRound, Smartphone, LogOut, Mail, Building2, BadgeCheck, ShieldCheck,
-  Check, AlertCircle, ChevronDown, Lock,
+  Check, AlertCircle, ChevronDown, Lock, Download, PencilLine, UserX, FileText,
 } from "lucide-react";
 import SpotlightCard from "../../components/SpotlightCard";
 import { useAuth } from "../../contexts/auth";
 import { useClinic } from "../../contexts/clinic";
 import { account } from "../../services/authService";
+import { repository } from "../../data";
+import { downloadJson, datedName } from "../../utils/download";
 import { totpUri } from "../../services/cognito";
 import { PAPEIS } from "../../services/permissoes";
 import { DEMO_MODE } from "../../config/app";
@@ -30,7 +33,8 @@ export default function MinhaConta() {
   const { user, signOut } = useAuth();
   const { unit, notify } = useClinic();
   const [email, setEmail] = useState(null);
-  const [open, setOpen] = useState(null); // "password" | "totp" | "sessions" | null
+  // uma linha aberta por vez, nos dois cartões: password | totp | sessions | export | correcao | exclusao
+  const [open, setOpen] = useState(null);
 
   useEffect(() => {
     account.details().then((d) => setEmail(d.email ?? null), () => {});
@@ -96,6 +100,7 @@ export default function MinhaConta() {
           </p>
         </SpotlightCard>
 
+        <div className="account-col">
         <SpotlightCard index={3} className="account-security">
           <header className="card-head">
             <div>
@@ -125,6 +130,9 @@ export default function MinhaConta() {
             <SessionsForm signOut={signOut} notify={notify} />
           </Row>
         </SpotlightCard>
+
+        <PrivacyCard open={open} toggle={toggle} close={() => setOpen(null)} notify={notify} />
+        </div>
       </div>
     </main>
   );
@@ -363,5 +371,189 @@ function SessionsForm({ signOut, notify }) {
         )}
       </div>
     </div>
+  );
+}
+
+const REQUEST_TYPES = { correcao: "Correção de dados", exclusao: "Exclusão da conta" };
+const REQUEST_STATUS = {
+  aberto: { label: "Em análise", tone: "amber" },
+  concluido: { label: "Concluído", tone: "green" },
+  recusado: { label: "Recusado", tone: "red" },
+};
+const day = (iso) => new Date(iso).toLocaleDateString("pt-BR");
+
+/** LGPD, art. 18: baixar os próprios dados e pedir correção ou exclusão da conta. */
+function PrivacyCard({ open, toggle, close, notify }) {
+  const [requests, setRequests] = useState([]);
+  const load = useCallback(() => {
+    repository.listMyRequests().then(setRequests, () => {});
+  }, []);
+  useEffect(load, [load]);
+
+  const done = (msg) => {
+    notify(msg, "success");
+    close();
+    load();
+  };
+
+  return (
+    <SpotlightCard index={4} className="account-security">
+      <header className="card-head">
+        <div>
+          <h2>Privacidade e seus dados</h2>
+          <p>Seus direitos pela LGPD: ver tudo o que o painel guarda sobre você, corrigir ou pedir a exclusão.</p>
+        </div>
+      </header>
+
+      <Row
+        icon={Download} title="Baixar meus dados" text="Um arquivo com sua conta, sua atividade no painel e seus pedidos."
+        open={open === "export"} onToggle={() => toggle("export")}
+      >
+        <ExportForm notify={notify} onDone={close} />
+      </Row>
+
+      <Row
+        icon={PencilLine} title="Pedir correção" text="Nome, e-mail, CRF ou farmácia errados? A administração corrige."
+        open={open === "correcao"} onToggle={() => toggle("correcao")}
+      >
+        <RequestForm type="correcao" requests={requests} onDone={() => done("Pedido de correção enviado à administração.")} />
+      </Row>
+
+      <Row
+        icon={UserX} title="Pedir exclusão da conta" text="Para quem deixou a farmácia ou o Sincofarma."
+        open={open === "exclusao"} onToggle={() => toggle("exclusao")} danger
+      >
+        <RequestForm type="exclusao" requests={requests} onDone={() => done("Pedido de exclusão enviado à administração.")} />
+      </Row>
+
+      {requests.length > 0 && (
+        <div className="lgpd-requests">
+          <h3>Seus pedidos</h3>
+          <ul>
+            {requests.map((r) => (
+              <li key={r.id}>
+                <div className="lgpd-request-head">
+                  <strong>{REQUEST_TYPES[r.type] ?? r.type}</strong>
+                  <span className={`lgpd-status lgpd-status--${REQUEST_STATUS[r.status]?.tone ?? "amber"}`}>
+                    {REQUEST_STATUS[r.status]?.label ?? r.status}
+                  </span>
+                </div>
+                <small>Enviado em {day(r.at)}{r.resolvedAt ? ` · respondido em ${day(r.resolvedAt)}` : ""}</small>
+                {r.response && <p className="lgpd-response">{r.response}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <Link to="/privacidade" className="lgpd-policy-link">
+        <FileText size={15} aria-hidden="true" /> Política de privacidade do painel
+      </Link>
+    </SpotlightCard>
+  );
+}
+
+function ExportForm({ notify, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run() {
+    setError("");
+    setBusy(true);
+    try {
+      const data = await repository.getMyData();
+      downloadJson(datedName("sincofarma-meus-dados"), data);
+      notify("Arquivo baixado. Guarde em local seguro: ele tem seu CPF e e-mail.", "success");
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="account-form">
+      <p className="account-text">
+        O arquivo (formato JSON, abre em qualquer editor de texto) traz seus dados de cadastro, os aparelhos
+        lembrados, o que você fez no painel com data e protocolo, seus pedidos e com quem os dados são
+        compartilhados. Dados de pacientes não entram: eles pertencem aos pacientes.
+      </p>
+      {error && <p className="account-error" role="alert"><AlertCircle size={14} /> {error}</p>}
+      <div className="account-actions">
+        <button type="button" className="btn btn--primary" onClick={run} disabled={busy}>
+          <Download size={16} /> {busy ? "Preparando…" : "Baixar arquivo"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RequestForm({ type, requests, onDone }) {
+  const [details, setDetails] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const pending = requests.some((r) => r.type === type && r.status === "aberto");
+  const exclusao = type === "exclusao";
+
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
+    if (!exclusao && details.trim().length < 5) return setError("Diga o que precisa ser corrigido.");
+    // exclusão: primeiro clique só pede confirmação
+    if (exclusao && !confirm) return setConfirm(true);
+    setBusy(true);
+    try {
+      await repository.createMyRequest({ type, details: details.trim() });
+      setDetails("");
+      setConfirm(false);
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (pending) {
+    return <p className="account-text">Você já tem um pedido deste tipo em análise. A resposta aparece aqui embaixo.</p>;
+  }
+
+  return (
+    <form className="account-form" onSubmit={submit} noValidate>
+      {exclusao ? (
+        <p className="account-text">
+          Ao aprovar, a administração <b>anonimiza</b> sua conta: nome, e-mail, CPF, CRF e app autenticador
+          são apagados e você perde o acesso. Os atendimentos que você registrou continuam, como exige a
+          norma sanitária, ligados a um código interno e ao nome de responsável técnico que assinou cada um.
+        </p>
+      ) : (
+        <p className="account-text">Diga o que está errado e o valor certo. A administração confere e corrige.</p>
+      )}
+      <label className="field">
+        <span>{exclusao ? "MOTIVO (OPCIONAL)" : "O QUE CORRIGIR"}</span>
+        <textarea
+          rows={3}
+          maxLength={1000}
+          value={details}
+          onChange={(e) => setDetails(e.target.value)}
+          placeholder={exclusao ? "Ex.: deixei a farmácia" : "Ex.: meu e-mail mudou para ana@novo.com.br"}
+        />
+      </label>
+      {error && <p className="account-error" role="alert"><AlertCircle size={14} /> {error}</p>}
+      <div className="account-actions">
+        {confirm && (
+          <button type="button" className="btn btn--ghost" onClick={() => setConfirm(false)}>Voltar</button>
+        )}
+        <button
+          type="submit"
+          className={`btn ${exclusao && confirm ? "btn--danger-solid" : "btn--primary"}`}
+          disabled={busy}
+        >
+          {busy ? "Enviando…" : exclusao ? (confirm ? "Confirmar pedido de exclusão" : "Pedir exclusão") : "Enviar pedido"}
+        </button>
+      </div>
+    </form>
   );
 }

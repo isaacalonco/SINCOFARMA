@@ -4,6 +4,7 @@ import re
 
 from .comum import auditoria
 from .comum import encaminhamentos as enc
+from .comum import lgpd
 from .comum import repositorio as repo
 from .comum import usuarios
 from .comum import tempo
@@ -14,10 +15,13 @@ from .comum.validacao import (
     SUB,
     VISIT_ID,
     validar_atualizacao,
+    validar_cpf_titular,
     validar_criacao,
     validar_encaminhamento,
     validar_mudanca_encaminhamento,
     validar_mudanca_usuario,
+    validar_pedido_lgpd,
+    validar_resposta_lgpd,
     validar_usuario,
 )
 
@@ -247,3 +251,58 @@ def listar_auditoria(event, _context):
     for ev in events:
         ev["actorName"] = names.get(ev.get("actorSub"), "Usuário removido")
     return 200, {"month": month, "events": events, "next": nxt, "units": repo.list_units()}
+
+
+# ---------------------------------------------------------------- LGPD (direitos do titular)
+
+@handler
+def meus_dados(event, _context):
+    """GET /me/dados: tudo o que o painel guarda sobre quem pede, para baixar (art. 18, II e V)."""
+    caller = caller_from_event(event)
+    caller.exigir("exercer_direitos")
+    return 200, lgpd.dados_do_usuario(caller)
+
+
+@handler
+def listar_meus_pedidos(event, _context):
+    """GET /me/pedidos: pedidos de correção ou exclusão de quem pede."""
+    caller = caller_from_event(event)
+    caller.exigir("exercer_direitos")
+    return 200, {"requests": lgpd.pedidos_de(caller.sub)}
+
+
+@handler
+def criar_meu_pedido(event, _context):
+    """POST /me/pedidos: pede correção de dados ou exclusão (anonimização) da conta."""
+    caller = caller_from_event(event)
+    caller.exigir("exercer_direitos")
+    data = validar_pedido_lgpd(parse_json(event))
+    return 201, lgpd.criar_pedido(caller, data["type"], data["details"])
+
+
+@handler
+def listar_pedidos_lgpd(event, _context):
+    """GET /lgpd/pedidos[?status=]: pedidos de todos os usuários, para a administração responder."""
+    caller_from_event(event).exigir("atender_titulares")
+    status = (event.get("queryStringParameters") or {}).get("status")
+    if status is not None and status not in lgpd.STATUS:
+        raise HttpError(400, "Status inválido.")
+    return 200, {"requests": lgpd.listar_pedidos(status)}
+
+
+@handler
+def responder_pedido_lgpd(event, _context):
+    """PATCH /lgpd/pedidos/{id}: conclui ou recusa; concluir uma exclusão anonimiza a conta."""
+    caller = caller_from_event(event)
+    caller.exigir("atender_titulares")
+    pedido_id = (event.get("pathParameters") or {}).get("id", "")
+    data = validar_resposta_lgpd(pedido_id, parse_json(event))
+    return 200, lgpd.responder_pedido(caller, pedido_id, data["status"], data["response"])
+
+
+@handler
+def exportar_paciente(event, _context):
+    """POST /lgpd/pacientes {cpf}: tudo sobre um paciente, a pedido dele (art. 18, II e V)."""
+    caller = caller_from_event(event)
+    caller.exigir("atender_titulares")
+    return 200, lgpd.dados_do_paciente(caller, validar_cpf_titular(parse_json(event)))

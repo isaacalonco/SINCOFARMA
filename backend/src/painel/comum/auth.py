@@ -33,6 +33,10 @@ PERMISSOES: dict[str, frozenset[str]] = {
     "gerenciar_usuarios": frozenset({"admin"}),
     # registro de auditoria geral (sem dados de paciente)
     "ver_auditoria": frozenset({"admin"}),
+    # LGPD: baixar os próprios dados e pedir correção ou exclusão da conta (todo mundo)
+    "exercer_direitos": frozenset({"farmaceutico", "medico", "admin"}),
+    # LGPD: responder pedidos e exportar os dados de um paciente a pedido dele
+    "atender_titulares": frozenset({"admin"}),
 }
 
 # papéis que só fazem sentido dentro de uma farmácia

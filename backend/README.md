@@ -33,6 +33,12 @@ tests/                         pytest com DynamoDB e Cognito simulados
 | POST | `/usuarios` | administração cadastra: `{ cpf, name, email, roles, unit?, crf? }`; o Cognito envia a senha temporária |
 | PATCH | `/usuarios/{id}` | administração: `{ roles?, unit?, enabled?, resetMfa?, resendInvite? }` (ninguém desativa a si mesmo) |
 | GET | `/auditoria?mes=aaaa-mm` | administração: registro geral do mês, sem dados de paciente (paginado por `inicio`) |
+| GET | `/me/dados` | qualquer perfil: tudo o que o painel guarda sobre quem pede, para baixar (sem dados de paciente) |
+| GET | `/me/pedidos` | qualquer perfil: os próprios pedidos de privacidade |
+| POST | `/me/pedidos` | qualquer perfil: `{ type: correcao\|exclusao, details }` (um aberto de cada tipo por vez) |
+| GET | `/lgpd/pedidos[?status=]` | administração: pedidos de todos (`aberto`, `concluido`, `recusado`) |
+| PATCH | `/lgpd/pedidos/{id}` | administração: `{ status: concluido\|recusado, response }`; concluir exclusão anonimiza a conta |
+| POST | `/lgpd/pacientes` | administração: `{ cpf }` (no corpo, nunca na URL): todos os atendimentos e encaminhamentos do paciente |
 
 Todas exigem o **token de acesso** do Cognito no cabeçalho `Authorization`.
 
@@ -81,6 +87,23 @@ perfil, farmácia e protocolo, **sem nenhum dado de paciente**. É o que a tela 
   auditoria. O front só a lê pelas rotas de encaminhamento, e só o que cada perfil pode ver.
 - O servidor recalcula urgência, sinais, CPF anonimizado, RT e protocolo; não confia no navegador.
 
+## LGPD (direitos do titular)
+
+Código em `src/painel/comum/lgpd.py`; política de privacidade pública no front em `/privacidade`.
+
+- **Usuário do painel** (Minha conta): baixa um JSON com conta, aparelhos lembrados, atividade (com protocolo, nunca
+  dado de paciente), encaminhamentos recebidos (médico) e pedidos; pede correção ou exclusão.
+- **Exclusão = anonimização**: ao concluir, a conta sai do Cognito (`AdminDeleteUser`: nome, e-mail, CPF, CRF, MFA) e
+  o CPF é tirado das trilhas antigas (`actorUsername`). Atendimentos, encaminhamentos e auditoria ficam, ligados ao
+  `sub` (obrigação legal, art. 16, I); o nome e CRF do responsável técnico em cada atendimento também ficam. A
+  administração não responde o próprio pedido.
+- **Paciente**: pede na farmácia ou ao Sincofarma; a administração exporta pelo CPF. Índice `PAC#<cpf>` na tabela
+  clínica, gravado na mesma transação de cada atendimento e encaminhamento. A exportação lista com quais médicos o
+  dado foi compartilhado e não leva nomes de funcionários.
+- **Minimização e registro**: a trilha não grava mais o CPF de quem agiu (só o `sub`); abrir a ficha completa entra no
+  registro geral (`visit_read`); exportar dados de paciente entra com o CPF mascarado.
+- Atendimentos de antes do índice: rodar uma vez `scripts/indexar_pacientes.py` (ver Deploy).
+
 ## Desenvolvimento
 
 ```bash
@@ -108,6 +131,13 @@ sam build
 sam deploy                                   # dev (samconfig.toml), pede confirmação do changeset
 sam deploy --config-env prod \
   --parameter-overrides Stage=prod AllowedOrigins=https://SEU-DOMINIO.vercel.app AlarmEmail=voce@exemplo.com
+```
+
+Depois do deploy que trouxe a LGPD, indexe por CPF os atendimentos que já existiam (uma vez só; pode repetir):
+
+```bash
+python scripts/indexar_pacientes.py --stack sincofarma-painel-prod --profile sincofarma --simular   # só conta
+python scripts/indexar_pacientes.py --stack sincofarma-painel-prod --profile sincofarma
 ```
 
 Depois do deploy:

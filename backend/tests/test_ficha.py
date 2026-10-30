@@ -1,6 +1,8 @@
 """Ficha do atendimento: registro clínico completo + histórico, só para a farmácia dele."""
 
-from conftest import body_of, event
+import copy
+
+from conftest import VALID_CLINICAL, body_of, doctor_sub, event
 from test_api import patch, post_visit
 
 
@@ -9,9 +11,11 @@ def ficha(api, visit_id, **kw):
 
 
 def test_ficha_completa_com_historico(aws):
-    visit = body_of(post_visit(aws))
-    patch(aws, visit["id"], {"status": "done"})
-    resp = ficha(aws, visit["id"])
+    # sub real do Cognito: o histórico acha o nome de quem agiu por ele (a trilha não guarda o CPF)
+    ana = {"sub": doctor_sub("52998224725")}
+    visit = body_of(aws.criar_visita(event("POST", "/visits", {"clinical": copy.deepcopy(VALID_CLINICAL)}, **ana), None))
+    patch(aws, visit["id"], {"status": "done"}, **ana)
+    resp = ficha(aws, visit["id"], **ana)
     assert resp["statusCode"] == 200
     data = body_of(resp)
     assert data["visit"]["protocol"] == visit["protocol"]

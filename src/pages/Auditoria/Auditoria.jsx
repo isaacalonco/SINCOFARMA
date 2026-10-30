@@ -20,8 +20,15 @@ const ACTIONS = {
   referral_cancelled: { label: "Cancelou encaminhamento", group: "encaminhamentos" },
   user_create: { label: "Cadastrou usuário", group: "usuarios" },
   user_update: { label: "Alterou usuário", group: "usuarios" },
+  // acesso à ficha completa (CPF, telefone, dados de saúde)
+  visit_read: { label: "Abriu ficha", group: "atendimentos" },
+  lgpd_export_self: { label: "Baixou os próprios dados", group: "privacidade" },
+  lgpd_request: { label: "Pedido de privacidade", group: "privacidade" },
+  lgpd_request_resolved: { label: "Respondeu pedido de privacidade", group: "privacidade" },
+  lgpd_user_anonymized: { label: "Anonimizou conta", group: "privacidade" },
+  lgpd_export_patient: { label: "Exportou dados de paciente", group: "privacidade" },
 };
-const GROUPS = { atendimentos: "Atendimentos", encaminhamentos: "Encaminhamentos", usuarios: "Usuários e acessos" };
+const GROUPS = { atendimentos: "Atendimentos", encaminhamentos: "Encaminhamentos", usuarios: "Usuários e acessos", privacidade: "Privacidade (LGPD)" };
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 // últimos 12 meses, do mais recente para o mais antigo
@@ -43,7 +50,12 @@ function detail(ev) {
   const parts = [];
   if (t.type === "visit" || t.type === "referral") parts.push(`Protocolo ${t.label ?? "—"}`);
   if (t.type === "referral" && t.doctor) parts.push(`médico: ${t.doctor}`);
-  if (t.type === "user") parts.push(t.label);
+  if (t.type === "user") parts.push(t.label ?? "conta removida");
+  if (t.type === "lgpd_request") parts.push(t.label);
+  // paciente: só o CPF mascarado e quantos registros saíram no arquivo
+  if (t.type === "patient") parts.push(`CPF ${t.label}`);
+  if (d.atendimentos !== undefined) parts.push(`${d.atendimentos} atendimento(s), ${d.encaminhamentos} encaminhamento(s)`);
+  if (d.status === "concluido" || d.status === "recusado") parts.push(d.status === "concluido" ? "concluído" : "recusado");
   if (Array.isArray(d.status) && STATUS[d.status[1]]) parts.push(`${STATUS[d.status[0]]?.short ?? d.status[0]} → ${STATUS[d.status[1]].short}`);
   if (Array.isArray(d.urgent) && d.urgent[0] !== d.urgent[1]) parts.push(d.urgent[1] ? "Red Flag ligada" : "Red Flag desligada");
   if (d.roles) parts.push(`perfil: ${d.roles.map((r) => PAPEIS[r] ?? r).join(" + ")}`);

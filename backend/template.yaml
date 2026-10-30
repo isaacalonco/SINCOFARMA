@@ -554,19 +554,19 @@ Resources:
       Policies:
         - Statement:
             - Effect: Allow
-              Action: [dynamodb:GetItem]
+              Action: [dynamodb:GetItem, dynamodb:PutItem] # PutItem: abrir a ficha fica no registro geral (LGPD)
               Resource: !GetAtt TabelaPainel.Arn
             - Effect: Allow
               Action: [dynamodb:Query]
               Resource: !GetAtt TabelaClinico.Arn
             - Effect: Allow
-              Action: [kms:Decrypt, kms:DescribeKey]
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
               Resource: !GetAtt ChaveDados.Arn
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
             - Effect: Allow
-              Action: [cognito-idp:AdminGetUser]
+              Action: [cognito-idp:AdminGetUser, cognito-idp:ListUsers]
               Resource: !GetAtt UserPool.Arn
       Events:
         Http:
@@ -612,6 +612,202 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${AuditoriaFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  # ---------------------------------------------------------------- LGPD (direitos do titular)
+  MeusDadosFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-meus-dados"
+      Handler: painel.api.meus_dados
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Query, dynamodb:GetItem, dynamodb:PutItem] # atividade, pedidos, farmácia; registra a exportação
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [dynamodb:Query] # encaminhamentos recebidos (só do próprio médico)
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [cognito-idp:AdminGetUser, cognito-idp:AdminListDevices]
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: "/me/dados"
+
+  ListarMeusPedidosFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-listar-meus-pedidos"
+      Handler: painel.api.listar_meus_pedidos
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Query]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: "/me/pedidos"
+
+  CriarMeuPedidoFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-criar-meu-pedido"
+      Handler: painel.api.criar_meu_pedido
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Query, dynamodb:PutItem]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [cognito-idp:AdminGetUser]
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: POST
+            Path: "/me/pedidos"
+
+  ListarPedidosLgpdFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-listar-pedidos-lgpd"
+      Handler: painel.api.listar_pedidos_lgpd
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Query]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: "/lgpd/pedidos"
+
+  ResponderPedidoLgpdFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-responder-pedido-lgpd"
+      Handler: painel.api.responder_pedido_lgpd
+      Timeout: 120
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:UpdateItem, dynamodb:PutItem]
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [dynamodb:Scan, dynamodb:UpdateItem] # anonimização: tira o CPF de trilhas antigas
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [cognito-idp:ListUsers, cognito-idp:AdminUserGlobalSignOut, cognito-idp:AdminDeleteUser]
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: PATCH
+            Path: "/lgpd/pedidos/{id}"
+
+  ExportarPacienteFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "sincofarma-painel-${Stage}-exportar-paciente"
+      Handler: painel.api.exportar_paciente
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem] # resumo do atendimento e perfil da farmácia; registra a exportação
+              Resource: !GetAtt TabelaPainel.Arn
+            - Effect: Allow
+              Action: [dynamodb:Query, dynamodb:GetItem] # índice PAC#, ficha, trilha e encaminhamentos
+              Resource: !GetAtt TabelaClinico.Arn
+            - Effect: Allow
+              Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+              Resource: !GetAtt ChaveDados.Arn
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+      Events:
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: POST
+            Path: "/lgpd/pacientes"
+
+  MeusDadosLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${MeusDadosFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  ListarMeusPedidosLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListarMeusPedidosFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  CriarMeuPedidoLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CriarMeuPedidoFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  ListarPedidosLgpdLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListarPedidosLgpdFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  ResponderPedidoLgpdLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ResponderPedidoLgpdFn}"
+      RetentionInDays: !Ref LogRetentionDays
+  ExportarPacienteLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ExportarPacienteFn}"
       RetentionInDays: !Ref LogRetentionDays
   # ---------------------------------------------------------------- tarefas agendadas
   EsquecerAparelhosFn:
@@ -726,3 +922,6 @@ Outputs:
     Value: !Ref UserPoolClient
   TabelaPainel:
     Value: !Ref TabelaPainel
+  TabelaClinico:
+    Description: Usado pelo script que indexa os pacientes (LGPD)
+    Value: !Ref TabelaClinico

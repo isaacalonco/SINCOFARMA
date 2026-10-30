@@ -23,7 +23,7 @@ describe("papéis a partir dos grupos do Cognito", () => {
 
 describe("o que cada perfil vê", () => {
   const paginas = (u) =>
-    ["/dashboard", "/atendimentos", "/nova-triagem", "/encaminhamentos", "/farmacias", "/relatorios", "/usuarios", "/auditoria", "/ficha", "/minha-conta"].filter((p) =>
+    ["/dashboard", "/atendimentos", "/nova-triagem", "/encaminhamentos", "/farmacias", "/relatorios", "/usuarios", "/auditoria", "/privacidade-lgpd", "/ficha", "/minha-conta"].filter((p) =>
       podeRota(u, p)
     );
 
@@ -39,14 +39,14 @@ describe("o que cada perfil vê", () => {
   });
 
   it("administração: telas de gestão, sem listas de pacientes nem triagem", () => {
-    expect(paginas(admin)).toEqual(["/dashboard", "/farmacias", "/relatorios", "/usuarios", "/auditoria", "/minha-conta"]);
+    expect(paginas(admin)).toEqual(["/dashboard", "/farmacias", "/relatorios", "/usuarios", "/auditoria", "/privacidade-lgpd", "/minha-conta"]);
     expect(rotaInicial(admin)).toBe("/dashboard");
     expect(pode(admin, "ver_atendimentos")).toBe(false);
     expect(pode(admin, "criar_triagem")).toBe(false);
   });
 
   it("papéis somam", () => {
-    expect(paginas(rtAdmin)).toHaveLength(10);
+    expect(paginas(rtAdmin)).toHaveLength(11);
     expect(pode(rtAdmin, "criar_triagem")).toBe(true);
   });
 
@@ -57,6 +57,19 @@ describe("o que cada perfil vê", () => {
 
   it("permissão com nome errado falha alto", () => {
     expect(() => pode(farmaceutico, "ver_tudo")).toThrow(/desconhecida/);
+  });
+});
+
+describe("LGPD", () => {
+  it("todo perfil baixa os próprios dados e faz pedidos", () => {
+    for (const u of [farmaceutico, medico, admin]) expect(pode(u, "exercer_direitos")).toBe(true);
+  });
+
+  it("só a administração atende pedidos e exporta dados de paciente", () => {
+    expect(pode(admin, "atender_titulares")).toBe(true);
+    expect(pode(farmaceutico, "atender_titulares")).toBe(false);
+    expect(pode(medico, "atender_titulares")).toBe(false);
+    expect(podeRota(farmaceutico, "/privacidade-lgpd")).toBe(false);
   });
 });
 

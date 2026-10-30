@@ -31,3 +31,6 @@ backend/.venv/
 backend/.aws-sam/
 __pycache__/
 .pytest_cache/
+
+# memória do Claude (anotações locais, fora do repositório)
+memoria claude/

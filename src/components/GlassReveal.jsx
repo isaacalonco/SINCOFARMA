@@ -503,12 +503,13 @@ function frameAt(T, P) {
 /**
  * Revela `logo` (URL de imagem) dentro de um azulejo de vidro, uma vez.
  * `crop` recorta a imagem antes ([x, y, largura, altura] em frações).
- * `onRelease` avisa quando o vidro solta a marca; `still` congela no fim
- * (movimento reduzido). Sem WebGL2, mostra a imagem parada no lugar.
+ * `onSettle` avisa quando o vidro já soltou e a marca parou no tamanho final;
+ * `still` congela no fim (movimento reduzido). Sem WebGL2 não desenha nada e
+ * chama `onSettle` na hora: quem usa mostra o logo comum.
  */
 export default function GlassReveal({
   logo, crop, background, originalColors = true, tileSize, logoScale, finalScale,
-  tuning, still = false, onRelease, label = "Logo", className = "", style,
+  tuning, still = false, onSettle, label = "Logo", className = "", style,
 }) {
   const wrapRef = useRef(null);
   const engineRef = useRef(null);
@@ -521,9 +522,9 @@ export default function GlassReveal({
     return { ...BASE, ...set, ...JSON.parse(tuningKey) };
   }, [background, originalColors, tileSize, logoScale, finalScale, tuningKey]);
 
-  const live = useRef({ settings, still, onRelease });
+  const live = useRef({ settings, still, onSettle });
   useEffect(() => {
-    live.current = { settings, still, onRelease };
+    live.current = { settings, still, onSettle };
   });
 
   useEffect(() => {
@@ -544,6 +545,10 @@ export default function GlassReveal({
   }, [settings, still]);
 
   useEffect(() => {
+    if (fallback) live.current.onSettle?.();
+  }, [fallback]);
+
+  useEffect(() => {
     let cancelled = false;
     loadLogo(logo, crop).then(
       (data) => {
@@ -557,9 +562,7 @@ export default function GlassReveal({
   }, [logo, crop]);
 
   return (
-    <div ref={wrapRef} role="img" aria-label={label} className={`glass-reveal ${className}`} style={style}>
-      {fallback && <img className="glass-reveal-fallback" src={logo} alt="" />}
-    </div>
+    <div ref={wrapRef} role="img" aria-label={label} className={`glass-reveal ${className}`} style={style} />
   );
 }
 
@@ -584,7 +587,7 @@ function startEngine(wrap, live) {
   let logo = null;
   let time = 0;
   let playing = true;
-  let released = false;
+  let settled = false;
   let dirty = true;
   let visible = false;
   let lost = false;
@@ -595,7 +598,7 @@ function startEngine(wrap, live) {
     raf = 0;
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    const { settings: P, still, onRelease } = live.current;
+    const { settings: P, still, onSettle } = live.current;
     const end = endOf(P);
     if (still) {
       playing = false;
@@ -608,9 +611,9 @@ function startEngine(wrap, live) {
       }
       dirty = true;
     }
-    if (!released && time >= P.present) {
-      released = true;
-      onRelease?.();
+    if (!settled && time >= end) {
+      settled = true;
+      onSettle?.();
     }
     if (dirty && logo && renderer && !lost) {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -674,7 +677,7 @@ function startEngine(wrap, live) {
       renderer?.setLogo(data);
       time = 0;
       playing = true;
-      released = false;
+      settled = false;
       dirty = true;
       kick();
     },
